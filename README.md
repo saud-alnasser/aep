@@ -55,7 +55,7 @@ AEP ships as a Claude Code plugin, published from this repository.
 **1. Add the marketplace and install the plugin**
 
 ```
-/plugin marketplace add saud-alnasser/skills
+/plugin marketplace add saud-alnasser/aep
 /plugin install aep@aep-marketplace
 /reload-plugins
 ```
