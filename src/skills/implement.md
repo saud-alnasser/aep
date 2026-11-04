@@ -28,8 +28,9 @@ frontier. Act on its JSON:
 
 | Field | Do |
 | --- | --- |
-| `stop` | end the turn quoting it: a dirty surface names its paths; a claim held elsewhere is not taken |
+| `stop` | end the turn quoting it: a dirty surface names its paths; a claim held elsewhere is not taken (another session's live lease) |
 | `surface` | work only there. Never switch branches anywhere else |
+| `move: true` | move into `surface` yourself, the way `runtime.reference` says, and `start` again there, which takes the lease; never hand the move to the developer |
 | `role: implementer` | you are a child: build your one ticket, integrate nothing |
 | `drift`, `marker` | quote the marker; a match skips the drift read and nothing else — still check every claim you rely on against the source |
 | `next` | `build`, `converge`, `review`, `close`, or `blocked` |
@@ -66,8 +67,9 @@ and continue.
    or `paths` match. Nothing else.
 3. `wave: dispatch` (full lane, two or more ready): follow
    `[[policies/execution/parallel]]` — `aep.mjs dispatch`, one
-   `[[agents/implementer]]` per ticket, briefs per
-   `[[skills/implement/dispatch]]`. Otherwise build here.
+   `[[agents/implementer]]` per ticket, run the way the playbook in
+   `runtime.reference` says, briefs per `[[skills/implement/dispatch]]`.
+   Otherwise build here.
 4. Test-first where the rules require it (`[[skills/tdd]]`). A bug of unknown
    cause: `[[skills/implement/diagnosing]]`. Technical uncertainty that
    survives: `[[skills/prototype]]`, whose code is never promoted as-is.
@@ -148,6 +150,7 @@ human can settle, and carry it to the close.
 
 ## Resume
 
-Run step 1 again. It re-enters the same surface. Re-verify nothing ticked; trust
-nothing unticked. A detached `HEAD` names no branch and holds no claim: start
+Run step 1 again. It re-enters the same surface, from any runtime, and hands
+back another runtime's worktree to move into. Re-verify nothing
+ticked; trust nothing unticked. A detached `HEAD` names no branch and holds no claim: start
 properly rather than guessing the ticket from the diff.

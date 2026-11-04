@@ -21,8 +21,9 @@ numbered for the issue, and both bodies name the effort's path.
 | the pull request: approach, tickets, a mirror of `log.md` | tickets, `blocked-by` edges, `log.md` |
 | labels, projecting those files | — |
 
-- A ticket is never a tracker object, and the dependency graph never leaves the
-  repository.
+- A ticket is never a tracker object, and the ticket graph never leaves the
+  repository. An effort's `builds-on:` is mirrored as an issue dependency; the
+  spec stays canonical.
 - The tracker is read, never mirrored into `.aep/`. `log.md` is canonical; the
   pull request mirrors it.
 - A run that finds an effort short of either object opens what is missing and
@@ -39,6 +40,11 @@ stops the opening: the draft stays in scratch and nothing is created. Then:
 create the issue (each criterion a checkbox), `aep open <slug> --lane <lane>
 --number <issue>`, push, and open a draft pull request carrying the approach
 and each ticket's criteria as checkboxes, or saying tickets are not cut yet.
+
+**Each `builds-on:` edge is a tracker dependency:** `gh issue edit <issue>
+--add-blocked-by <its issue>`, and the pull request body opens with `Builds on
+#<its issue>`. Where `aep open` waits on an unmerged effort, the issue stays in
+`status: backlog` with its edge set, and nothing else is created.
 
 The quick lane never uses the tracker.
 

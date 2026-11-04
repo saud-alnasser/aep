@@ -66,7 +66,8 @@ What is true when the work is done, including edge cases and error paths.
 
 **Read first:** `spec.md`, the ticket, prior commits, scratch notes — as paths
 **Task:** the task this child owns, whole
-**Worktree:** where it works
+**Worktree:** the surface `aep dispatch` created for this task, by its
+absolute path, and nowhere else (`[[policies/execution/parallel]]`)
 **Scratch:** `.aep/scratch/` inside that worktree, for its notes and exploration
 output — never a folder outside the project or one shared with another child
 **Returns:** the shape of the result

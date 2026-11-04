@@ -9,6 +9,8 @@
 //   node .aep/scripts/aep.mjs dispatch <effort> <ticket>...
 //   node .aep/scripts/aep.mjs land <effort> [<ticket>] --message <text> [--session <id>]
 //   node .aep/scripts/aep.mjs close <effort> [--stop <reason>] [--friction <line>]... [--session <id>]
+//   node .aep/scripts/aep.mjs release <effort>
+//   node .aep/scripts/aep.mjs yield [<effort>] [--session <id>]
 //   node .aep/scripts/aep.mjs raise <effort> <lane> --reason <text>
 //   node .aep/scripts/aep.mjs record <effort> --converge|--review|--note|--needs-you <line>
 //   node .aep/scripts/aep.mjs check [--root <tree>]
@@ -142,14 +144,178 @@ function rel(where, absolute) {
 
 // --- settings ---------------------------------------------------------------------
 
-/** `tracker`, `setup`, and `stack`, read from the repository's version-control rule. */
+/** Who sets up a surface the runtime supplied. `auto` asks `RUNTIME_SETUP`. */
+export const RUNTIME_SETUP_MODES = ['auto', 'aep', 'runtime'];
+
+/**
+ * `tracker`, `setup`, `stack`, and `runtimeSetup`, read from the repository's
+ * version-control rule.
+ */
 export function readSettings(root) {
   const file = path.join(root, 'rules', 'version-control.md');
   const fields = fs.existsSync(file) ? readArtifact(file).fields : {};
   const tracker = ['github', 'gitlab'].includes(fields.tracker) ? fields.tracker : 'none';
   const setup = typeof fields.setup === 'string' ? fields.setup.trim() : '';
   const stack = fields.stack === true || fields.stack === 'true';
-  return { tracker, setup, stack };
+  const runtimeSetup = RUNTIME_SETUP_MODES.includes(fields['runtime-setup']) ? fields['runtime-setup'] : 'auto';
+  return { tracker, setup, stack, runtimeSetup };
+}
+
+/**
+ * Runtimes that run their own setup when they create a worktree, as data: the
+ * file a human writes, and the key that declares the script. This is the one
+ * place a runtime is named. The key is matched at any depth, so a runtime that
+ * moves it inside its file still matches. A runtime that renames it is what
+ * `runtime-setup:` in rules/version-control is for: the repository answers,
+ * and no AEP release is needed.
+ */
+export const RUNTIME_SETUP = [
+  { runtime: 'T3 Code', file: 't3.json', key: 'runOnWorktreeCreate' },
+];
+
+/**
+ * The runtimes AEP knows how to drive, as data: the environment that detects
+ * each, the variables that carry its session id, and the reference holding its
+ * playbook. The first match wins, so a runtime that starts another is listed
+ * before it: T3 Code starts Claude Code, and both mark the process.
+ */
+export const RUNTIMES = [
+  {
+    name: 'T3 Code',
+    reference: 't3code',
+    detect: [{ env: 'T3CODE_THREAD_ID' }, { env: 'CLAUDE_CODE_ENTRYPOINT', equals: 't3-code' }, { prefix: 'T3_ACP_MCP_' }, { prefix: 'T3_MCP_' }],
+    session: ['T3CODE_THREAD_ID', 'CLAUDE_CODE_SESSION_ID'],
+  },
+  {
+    name: 'Claude Code',
+    reference: 'claude-code',
+    detect: [{ env: 'CLAUDECODE', equals: '1' }],
+    session: ['CLAUDE_CODE_SESSION_ID'],
+  },
+];
+
+/** The runtime this process runs under, from `RUNTIMES`, or null. */
+export function detectRuntime(env = process.env) {
+  const hit = (rule) => {
+    if (rule.prefix) return Object.keys(env).some((name) => name.startsWith(rule.prefix));
+    const value = env[rule.env];
+    return rule.equals === undefined ? Boolean(value) : value === rule.equals;
+  };
+  const runtime = RUNTIMES.find((entry) => entry.detect.some(hit));
+  if (!runtime) return null;
+  const sessionVar = runtime.session.find((name) => env[name]);
+  return { name: runtime.name, reference: runtime.reference, session: sessionVar ? env[sessionVar] : null };
+}
+
+/** The session a command runs for: `--session`, or the runtime's own id. */
+function sessionOf(args, env = process.env) {
+  return args.flags.session ?? detectRuntime(env)?.session ?? null;
+}
+
+// --- leases ------------------------------------------------------------------------------
+
+/**
+ * A lease names the session working in a surface. Nothing in git or in a
+ * runtime says whether a live session stands in a worktree, and a runtime can
+ * bind a second thread to one without checking, so the surface records it. It
+ * is advisory: it never locks a file, and one left by a crashed session goes
+ * stale after `LEASE_STALE_MINUTES`.
+ */
+export const LEASE_STALE_MINUTES = 60;
+
+function leaseFile(aepDir) {
+  return path.join(aepDir, 'scratch', 'lease.json');
+}
+
+export function readLease(aepDir) {
+  try {
+    return JSON.parse(fs.readFileSync(leaseFile(aepDir), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/** `none`, `mine`, `stale`, or `live` (another session's, still renewed). */
+export function leaseState(lease, session, now = Date.now()) {
+  if (!lease) return 'none';
+  if (session && lease.session === session) return 'mine';
+  const age = now - Date.parse(lease.renewed ?? 0);
+  return Number.isFinite(age) && age < LEASE_STALE_MINUTES * 60_000 ? 'live' : 'stale';
+}
+
+function writeLease(aepDir, lease) {
+  fs.mkdirSync(path.dirname(leaseFile(aepDir)), { recursive: true });
+  fs.writeFileSync(leaseFile(aepDir), `${JSON.stringify({ ...lease, renewed: new Date().toISOString() })}\n`, 'utf8');
+}
+
+/** Renews the caller's own lease; anyone else's is left alone. */
+export function renewLease(aepDir, session) {
+  const lease = readLease(aepDir);
+  if (!session || leaseState(lease, session) !== 'mine') return false;
+  writeLease(aepDir, lease);
+  return true;
+}
+
+/** Gives a lease up: the caller's own, or a stale one. A live one stays. */
+export function yieldLease(aepDir, session) {
+  const lease = readLease(aepDir);
+  const state = leaseState(lease, session);
+  if (state === 'none') return { yielded: false, reason: 'no lease here' };
+  if (state === 'live') return { yielded: false, reason: `held by another session, ${lease.session}`, held_by: lease };
+  fs.rmSync(leaseFile(aepDir), { force: true });
+  return { yielded: true, reason: state === 'mine' ? 'this session\'s lease' : 'a stale lease' };
+}
+
+/**
+ * Stops where another session's live lease holds the surface, and returns the
+ * lease found, so the commands that take or remove a surface share one guard.
+ */
+function guardLease(aepDir, effort, surface, session) {
+  const held = readLease(aepDir);
+  if (leaseState(held, session) === 'live') {
+    throw new Stop(`${effort} is being worked on by another session at ${surface} (${held.runtime ?? 'unknown runtime'}, session ${held.session}), active ${minutesSince(held.renewed)} minutes ago. Its lease goes stale after ${LEASE_STALE_MINUTES} minutes`, {
+      held_by: held, surface,
+    });
+  }
+  return held;
+}
+
+function minutesSince(iso) {
+  return Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
+}
+
+/** True where `key` is set truthy on any object inside `value`. */
+function declares(value, key) {
+  if (Array.isArray(value)) return value.some((item) => declares(item, key));
+  if (!value || typeof value !== 'object') return false;
+  if (Object.hasOwn(value, key) && value[key]) return true;
+  return Object.values(value).some((item) => declares(item, key));
+}
+
+/**
+ * Why AEP's `setup:` does not run in a surface the runtime supplied, or null
+ * where it does. `aep` always runs it; `runtime` never does; `auto` defers
+ * where a known runtime file in the surface declares a worktree setup.
+ */
+export function runtimeSetupOwner(settings, surface) {
+  if (settings.runtimeSetup === 'aep') return null;
+  if (settings.runtimeSetup === 'runtime') {
+    return 'rules/version-control sets runtime-setup: runtime, so the runtime set this surface up';
+  }
+  for (const entry of RUNTIME_SETUP) {
+    const file = path.join(surface, entry.file);
+    if (!fs.existsSync(file)) continue;
+    let data;
+    try {
+      data = JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch {
+      continue;
+    }
+    if (declares(data, entry.key)) {
+      return `${entry.runtime} runs its own worktree setup: ${entry.file} declares ${entry.key}`;
+    }
+  }
+  return null;
 }
 
 const LOCKFILES = [
@@ -170,26 +336,45 @@ function lockfileHash(tree) {
  * Runs the repository's own `setup:` command in a surface, and records the
  * lockfile it ran against in that surface's scratch. With `whenChanged`, it
  * runs only where the lockfiles moved since the last run.
+ *
+ * With `runtime`, the surface is one the runtime supplied. Where the runtime
+ * set it up itself, the first warm records the lockfiles as they stand and
+ * runs nothing, so setup does not run twice; a lockfile change after that runs
+ * `setup:` as in any surface, because the runtime only sets up at creation.
  */
-function warm(where, settings, surface, { whenChanged = false } = {}) {
-  if (!settings.setup) return { ran: false, reason: 'no setup command' };
+function warm(where, settings, surface, { whenChanged = false, runtime = false } = {}) {
+  const mode = settings.runtimeSetup;
+  if (!settings.setup) return { ran: false, mode, reason: 'no setup command' };
   const record = path.join(aepIn(surface, where), 'scratch', 'setup.json');
   const hash = lockfileHash(surface);
-  if (whenChanged && fs.existsSync(record)) {
+  let previous = null;
+  if (fs.existsSync(record)) {
     try {
-      if (JSON.parse(fs.readFileSync(record, 'utf8')).lockfiles === hash) {
-        return { ran: false, reason: 'lockfiles unchanged' };
-      }
+      previous = JSON.parse(fs.readFileSync(record, 'utf8'));
     } catch {
       // An unreadable record is the same as none: run it.
     }
   }
-  const outcome = runSetup(settings.setup, surface);
-  if (outcome.ok) {
+  if (whenChanged && previous?.lockfiles === hash) return { ran: false, mode, reason: 'lockfiles unchanged' };
+  const write = (fields) => {
     fs.mkdirSync(path.dirname(record), { recursive: true });
-    fs.writeFileSync(record, `${JSON.stringify({ lockfiles: hash, command: settings.setup })}\n`, 'utf8');
+    fs.writeFileSync(record, `${JSON.stringify({ lockfiles: hash, command: settings.setup, ...fields })}\n`, 'utf8');
+  };
+  let reason = 'AEP made this surface';
+  if (runtime && previous) reason = 'the lockfiles changed since this surface was set up';
+  else if (runtime) {
+    const owner = runtimeSetupOwner(settings, surface);
+    if (owner) {
+      write({ by: 'runtime' });
+      return { ran: false, deferred: true, mode, reason: owner };
+    }
+    reason = mode === 'aep'
+      ? 'rules/version-control sets runtime-setup: aep'
+      : 'the runtime declares no worktree setup of its own';
   }
-  return { ran: true, command: settings.setup, ...outcome };
+  const outcome = runSetup(settings.setup, surface);
+  if (outcome.ok) write({});
+  return { ran: true, mode, reason, command: settings.setup, ...outcome };
 }
 
 /** The one process start that is not git: the command the repository wrote into `setup:`. */
@@ -318,57 +503,196 @@ function ticketFile(effortDir, id) {
 
 // --- finding the effort -------------------------------------------------------------
 
-function effortBranches(where) {
-  const out = git(where.repo, ['for-each-ref', '--format=%(refname:short)', 'refs/heads']) ?? '';
-  return out.split(/\r?\n/).filter((name) => name && !name.includes('/')).filter((name) =>
-    git(where.repo, ['cat-file', '-e', `${name}:${where.aepRel}/efforts/${name}/spec.md`], { allowFail: true }) !== null);
+/**
+ * Every effort a local branch holds, as effort -> the branches holding it.
+ *
+ * The effort is the directory; the branch is whatever the repository or the
+ * runtime called it. A branch named for its effort is that effort's, with no
+ * diff. Every other branch holds the efforts whose `spec.md` its own commits
+ * add, so a runtime-named branch such as `feat/x` resolves as well as
+ * `12-csv-export` does. Adding is the test, not touching: a later branch that
+ * edits a merged effort's files does not hold it again. The default branch
+ * holds nothing, even with an effort merged into it and not yet pushed. A
+ * ticket branch, `<effort>--<ticket>`, carries its effort's commits and is
+ * never its branch.
+ */
+function effortIndex(where) {
+  const refs = (git(where.repo, ['for-each-ref', '--format=%(refname:short)', 'refs/heads'], { allowFail: true }) ?? '')
+    .split(/\r?\n/).filter(Boolean);
+  const prefix = `${where.aepRel}/efforts/`;
+  const hasSpec = (branch, effort) =>
+    git(where.repo, ['cat-file', '-e', `${branch}:${prefix}${effort}/spec.md`], { allowFail: true }) !== null;
+
+  const index = new Map();
+  const named = new Set(refs.filter((name) => !name.includes('/') && hasSpec(name, name)));
+  for (const name of named) index.set(name, [{ branch: name, claims: 1 }]);
+
+  const base = resolveBase(where.repo);
+  const baseName = base ? base.replace(/^origin\//, '') : null;
+  for (const name of refs) {
+    if (named.has(name) || name === base || name === baseName) continue;
+    const claim = effortsAddedBy(where, base, prefix, name);
+    for (const effort of claim) {
+      if (named.has(effort) || name.startsWith(`${effort}--`) || !hasSpec(name, effort)) continue;
+      index.set(effort, [...(index.get(effort) ?? []), { branch: name, claims: claim.length }]);
+    }
+  }
+  return index;
 }
 
+/** The efforts whose `spec.md` a branch's own commits add, from the merge base. */
+function effortsAddedBy(where, base, prefix, ref) {
+  if (!base) return [];
+  const diff = git(where.repo, ['diff', '--name-only', '--diff-filter=A', `${base}...${ref}`, '--', prefix], { allowFail: true });
+  if (!diff) return [];
+  const added = new Set();
+  for (const line of diff.split(/\r?\n/)) {
+    const file = line.trim();
+    if (!file.startsWith(prefix)) continue;
+    const parts = file.slice(prefix.length).split('/');
+    if (parts.length === 2 && parts[1] === 'spec.md') added.add(parts[0]);
+  }
+  return [...added];
+}
+
+/**
+ * A stop for a branch another worktree holds. The main checkout is never an
+ * effort's surface, so a branch checked out there is switched back, not
+ * continued in; any other holder is where the work continues.
+ */
+function heldElsewhere(where, effort, branch, holderPath) {
+  if (same(holderPath, where.main)) {
+    const base = resolveBase(where.repo);
+    return new Stop(`the main checkout has ${branch}, the branch of ${effort}, checked out. The main checkout is never an effort's surface: switch it back to ${base ? base.replace(/^origin\//, '') : 'the default branch'}, then run this again`, {
+      held: holderPath,
+    });
+  }
+  return new Stop(`the ${branch} branch of ${effort} is held by another surface, a runtime's worktree at ${holderPath}. A claim held elsewhere is not taken, and AEP never removes a runtime's worktree: if no run is working there, continue in that directory, or end that thread in its runtime`, {
+    held: holderPath,
+    continue_in: holderPath,
+  });
+}
+
+/**
+ * The one branch holding an effort, from the index. Where several do, the
+ * branch claiming the fewest efforts is the effort's own: a branch stacked on
+ * it carries its commits too, and claims one effort more. A tie stops.
+ */
+function branchFrom(index, effort) {
+  const holders = index.get(effort) ?? [];
+  if (holders.length === 0) return null;
+  const fewest = Math.min(...holders.map((holder) => holder.claims));
+  const own = holders.filter((holder) => holder.claims === fewest);
+  if (own.length > 1) {
+    throw new Stop(`${effort} is held by more than one branch: ${own.map((holder) => holder.branch).join(', ')}. A claim held twice is not taken`, {
+      branches: own.map((holder) => holder.branch),
+    });
+  }
+  return own[0].branch;
+}
+
+/**
+ * What each effort a spec's `builds-on:` names has become: `merged` where its
+ * `spec.md` is on the default branch, `open` where a branch holds it, and a
+ * stop otherwise. A name is the effort's directory or its number, which under
+ * a tracker is the issue number. Merged wins over open, since a branch named
+ * for an effort outlives its merge.
+ */
+function dependencies(where, index, names) {
+  const list = Array.isArray(names) ? names.map(String) : names === undefined ? [] : [String(names)];
+  if (list.length === 0) return [];
+  const base = resolveBase(where.repo);
+  const prefix = `${where.aepRel}/efforts/`;
+  const merged = base
+    ? (git(where.repo, ['ls-tree', '--name-only', `${base}:${prefix}`], { allowFail: true }) ?? '')
+      .split(/\r?\n/).filter((name) => name && showAt(where.repo, base, `${prefix}${name}/spec.md`) !== null)
+    : [];
+  const pick = (pool, wanted) => {
+    if (pool.includes(wanted)) return wanted;
+    const byNumber = pool.filter((name) => name.startsWith(`${wanted}-`));
+    if (byNumber.length > 1) throw new Stop(`builds-on names ${wanted}, which matches more than one effort: ${byNumber.join(', ')}`);
+    return byNumber[0] ?? null;
+  };
+  return list.map((wanted) => {
+    const done = pick(merged, wanted);
+    if (done) return { effort: done, state: 'merged', branch: null };
+    const open = pick([...index.keys()], wanted);
+    if (open) return { effort: open, state: 'open', branch: branchFrom(index, open) };
+    throw new Stop(`builds-on names ${wanted}, and no effort by that name or number is merged or held by a local branch. If it is open on another machine, fetch and check out its branch first`, { unknown: wanted });
+  });
+}
+
+/** The effort a name or number means, and the branch holding it. */
 function resolveEffort(where, wanted) {
-  const branches = effortBranches(where);
-  if (branches.includes(wanted)) return wanted;
-  const byNumber = branches.filter((name) => name.startsWith(`${wanted}-`));
-  if (byNumber.length === 1) return byNumber[0];
-  if (byNumber.length > 1) throw new Stop(`${wanted} names more than one effort: ${byNumber.join(', ')}`);
-  throw new Stop(`no effort branch named ${wanted}. Open it first: aep open <slug> --lane <lane>`);
+  const index = effortIndex(where);
+  const efforts = [...index.keys()];
+  let effort = null;
+  if (efforts.includes(wanted)) effort = wanted;
+  else {
+    const byNumber = efforts.filter((name) => name.startsWith(`${wanted}-`));
+    if (byNumber.length > 1) throw new Stop(`${wanted} names more than one effort: ${byNumber.join(', ')}`);
+    if (byNumber.length === 1) [effort] = byNumber;
+  }
+  if (!effort) throw new Stop(`no branch holds an effort named ${wanted}. Open it first: aep open <slug> --lane <lane>`);
+  return { effort, branch: branchFrom(index, effort) };
+}
+
+/**
+ * The worktree holding an effort's branch: `_run`, or a surface the runtime
+ * supplied. Null where no worktree holds it. Every command that acts on an
+ * effort acts here, so a run in the main checkout never writes the effort
+ * there, and a runtime surface is found wherever the runtime put it.
+ */
+function homeOf(where, branch) {
+  const holder = worktreeList(where.repo).find((tree) => tree.branch === branch);
+  return holder ? holder.path : null;
+}
+
+/** `homeOf`, or a stop naming what to run where no worktree holds the branch. */
+function requireHome(where, effort, branch) {
+  const home = homeOf(where, branch);
+  if (!home) throw new Stop(`no surface holds ${branch}, the branch of ${effort}. Run aep start ${effort} first`);
+  return home;
 }
 
 /** The run surface for an effort, entered or created; never a second one. */
-function enterSurface(where, effort, scope) {
+function enterSurface(where, effort, branch, scope) {
   if (scope && scope.surface.kind === 'run' && scope.surface.effort === effort) {
     return { surface: where.repo, entered: 'here' };
   }
   if (scope && scope.isolation.kind === 'worktree' && scope.surface.kind === 'runtime') {
-    const branch = git(where.repo, ['rev-parse', '--abbrev-ref', 'HEAD'], { allowFail: true });
-    if (branch === effort) return { surface: where.repo, entered: 'runtime' };
+    const current = git(where.repo, ['rev-parse', '--abbrev-ref', 'HEAD'], { allowFail: true });
+    if (current === branch) return { surface: where.repo, entered: 'runtime' };
   }
   const surface = runSurface(where, effort);
   const trees = worktreeList(where.repo);
   const atSurface = trees.find((tree) => same(tree.path, surface));
-  const holder = trees.find((tree) => tree.branch === effort && !same(tree.path, surface));
+  const holder = trees.find((tree) => tree.branch === branch && !same(tree.path, surface));
+  // Another runtime's worktree, most often one a previous session worked in.
+  // AEP never takes or removes it; the run continues there, and the caller
+  // moves into it. The main checkout is the one holder nothing continues in.
   if (holder) {
-    throw new Stop(`the ${effort} branch is held by another surface at ${holder.path}. A claim held elsewhere is not taken`, {
-      held: holder.path,
-    });
+    if (same(holder.path, where.main)) throw heldElsewhere(where, effort, branch, holder.path);
+    return { surface: holder.path, entered: 'elsewhere' };
   }
   if (atSurface) {
-    if (atSurface.branch === effort) return { surface, entered: 're-entered' };
+    if (atSurface.branch === branch) return { surface, entered: 're-entered' };
     if (atSurface.detached) {
-      git(surface, ['switch', '--quiet', effort]);
+      git(surface, ['switch', '--quiet', branch]);
       return { surface, entered: 're-entered' };
     }
-    throw new Stop(`${rel(where, surface)} holds ${atSurface.branch}, not ${effort}`);
+    throw new Stop(`${rel(where, surface)} holds ${atSurface.branch}, not ${branch}`);
   }
   if (fs.existsSync(surface)) {
     throw new Stop(`${rel(where, surface)} exists but is not a worktree of this repository. Inspect it, then remove it`);
   }
-  git(where.main, ['worktree', 'add', '--quiet', surface, effort]);
+  git(where.main, ['worktree', 'add', '--quiet', surface, branch]);
   return { surface, entered: 'created' };
 }
 
 // --- commands --------------------------------------------------------------------------
 
-function nextNumber(where) {
+function nextNumber(where, index) {
   const numbers = [];
   const take = (name) => {
     const match = /^(\d+)-/.exec(name);
@@ -379,6 +703,8 @@ function nextNumber(where) {
     if (fs.existsSync(dir)) fs.readdirSync(dir).forEach(take);
   }
   (git(where.repo, ['for-each-ref', '--format=%(refname:short)', 'refs/heads']) ?? '').split(/\r?\n/).forEach(take);
+  // An effort on a runtime-named branch carries its number only in its directory.
+  [...index.keys()].forEach(take);
   const worktrees = path.join(aepIn(where.main, where), 'worktrees');
   if (fs.existsSync(worktrees)) fs.readdirSync(worktrees).forEach(take);
   return numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
@@ -392,9 +718,10 @@ function open(root, args) {
   if (!slug) throw new Stop('usage: aep open <slug> --lane <quick|standard|full>');
   if (!LANES.includes(lane)) throw new Stop(`--lane must be one of: ${LANES.join(', ')}`);
 
-  const existing = effortBranches(where).find((name) => name.replace(/^\d+-/, '') === slug);
+  const index = effortIndex(where);
+  const existing = [...index.keys()].find((name) => name.replace(/^\d+-/, '') === slug);
   if (existing) {
-    const { surface, entered } = enterSurface(where, existing, null);
+    const { surface, entered } = enterSurface(where, existing, branchFrom(index, existing), resolveScope(root));
     const spec = readSpec(path.join(aepIn(surface, where), 'efforts', existing));
     return {
       effort: existing, lane: spec.lane, surface, opened: 'already', entered,
@@ -415,27 +742,80 @@ function open(root, args) {
     && git(where.repo, ['ls-remote', '--heads', 'origin', `${args.flags.number ?? ''}-${slug}`], { allowFail: true })) {
     throw new Stop(`a remote branch for ${slug} already exists. A claim held elsewhere is not taken`);
   }
-  const number = args.flags.number ? Number(args.flags.number) : nextNumber(where);
+  const number = args.flags.number ? Number(args.flags.number) : nextNumber(where, index);
   if (!Number.isInteger(number) || number < 1) throw new Stop('--number must be a positive integer');
   const effort = `${number}-${slug}`;
   if (branchExists(where.repo, effort)) throw new Stop(`a branch named ${effort} already exists. A claim held elsewhere is not taken`);
 
-  const base = settings.stack
+  // What the effort builds on decides where it may start. Merged work is on the
+  // base already. Unmerged work is stacked on, where the repository stacks, and
+  // waited for otherwise; both stops come before anything is created, so the
+  // draft stays in scratch.
+  const needs = dependencies(where, index, readArtifact(path.join(draft, 'spec.md')).fields['builds-on']);
+  // An open effort whose branch another named one already contains is carried
+  // by that one: a chain is one edge to its tip.
+  const open = needs.filter((need) => need.state === 'open');
+  const contains = (outer, inner) => outer.branch !== inner.branch
+    && git(where.repo, ['merge-base', '--is-ancestor', inner.branch, outer.branch], { allowFail: true }) !== null;
+  const unmerged = open.filter((need) => !open.some((other) => contains(other, need)));
+  const waitsOn = unmerged.map((need) => need.effort);
+  if (unmerged.length > 1) {
+    throw new Stop(`${slug} builds on ${waitsOn.join(' and ')}, and none of them has merged. A branch stacks on one effort: open ${slug} once all but one have merged`, { waits_on: waitsOn });
+  }
+  if (unmerged.length === 1 && !settings.stack) {
+    throw new Stop(`${slug} builds on ${waitsOn[0]}, which has not merged, and rules/version-control sets stack: false. Open ${slug} once ${waitsOn[0]} merges`, { waits_on: waitsOn });
+  }
+  const onto = unmerged[0] ?? null;
+
+  const base = onto ? onto.branch : settings.stack
     ? git(where.repo, ['rev-parse', '--abbrev-ref', 'HEAD'])
     : resolveBase(where.repo);
   if (!base || base === 'HEAD') throw new Stop('no base to branch from: no default branch was found, and HEAD is detached');
 
-  // A surface the runtime supplied is the run's already: the branch is created
-  // in it, and no second surface is taken. Anywhere else, branch and surface
-  // are created together, so the branch never exists unheld.
+  // A surface the runtime supplied is the run's already, and so is its branch:
+  // the effort is committed on the branch the runtime put there, because the
+  // runtime records that branch for the thread and renaming away from it leaves
+  // the runtime pointing at a branch nobody works on. Only a detached surface,
+  // or one standing on the base itself, gets a branch of AEP's. Anywhere else,
+  // branch and surface are created together, so the branch never exists unheld.
   const scope = resolveScope(root);
   const runtime = scope?.surface.kind === 'runtime';
   let surface;
+  let branch = effort;
   if (runtime) {
     surface = where.repo;
     const dirty = dirtyPaths(surface);
     if (dirty.length > 0) throw new Stop(`this surface has uncommitted changes: ${dirty.join(', ')}. Commit, move, or discard them, then open again`);
-    git(surface, ['switch', '--quiet', '-c', effort, base]);
+    const current = scope.branch;
+    const baseName = resolveBase(where.repo)?.replace(/^origin\//, '') ?? null;
+    if (current && current !== baseName) {
+      // The branch may carry the effort this one stacks on, with what that
+      // effort's own branch carries, and nothing else.
+      const carried = onto
+        ? [onto.effort, ...effortsAddedBy(where, resolveBase(where.repo), `${where.aepRel}/efforts/`, onto.branch)]
+        : [];
+      const foreign = scope.claim.filter((effort) => !carried.includes(effort));
+      if (foreign.length > 0) {
+        throw new Stop(`this surface's branch ${current} already holds ${foreign.join(', ')}. One runtime thread is one effort: open ${slug} in a new thread`, {
+          claim: scope.claim,
+        });
+      }
+      if (onto && !scope.claim.includes(onto.effort)) {
+        // A thread made from the base rather than from the effort it stacks on:
+        // it gains that effort's commits by moving forward, never by rewriting.
+        // A thread cut from a newer base has no commits of its own either, and
+        // moves onto the effort's branch the same way.
+        const own = baseName ? git(surface, ['rev-list', '--count', `${baseName}..HEAD`], { allowFail: true }) : null;
+        const moved = git(surface, ['merge', '--quiet', '--ff-only', onto.branch], { allowFail: true }) !== null
+          || (own === '0' && git(surface, ['reset', '--quiet', '--keep', onto.branch], { allowFail: true }) !== null);
+        if (!moved) {
+          throw new Stop(`${slug} stacks on ${onto.effort}, and ${current} cannot move forward to ${onto.branch} because it has commits of its own. Start the thread from ${onto.branch}`, { waits_on: [onto.effort] });
+        }
+      }
+      branch = current;
+    } else {
+      git(surface, ['switch', '--quiet', '-c', effort, base]);
+    }
   } else {
     surface = runSurface(where, effort);
     if (fs.existsSync(surface)) throw new Stop(`${rel(where, surface)} already exists. Inspect it, then remove it`);
@@ -449,23 +829,36 @@ function open(root, args) {
   if (!fs.existsSync(specFile)) throw new Stop(`the draft has no spec.md: ${draft}`);
   fs.writeFileSync(specFile, setField(fs.readFileSync(specFile, 'utf8'), 'lane', lane), 'utf8');
   ensureLog(into, effort);
-  const basis = settings.stack ? `${base}, the current branch, because rules/version-control sets stack: true` : base;
-  appendToLog(into, effort, 'Recorded', `- opened in the ${lane} lane, from ${basis}`);
+  const adopted = branch !== effort;
+  const basis = adopted
+    ? `${branch}, the branch the runtime supplied`
+    : onto ? `${base}, the branch of ${onto.effort}, which it builds on`
+      : settings.stack ? `${base}, the current branch, because rules/version-control sets stack: true` : base;
+  appendToLog(into, effort, 'Recorded', adopted
+    ? `- opened in the ${lane} lane, on ${basis}`
+    : `- opened in the ${lane} lane, from ${basis}`);
+  if (needs.length > 0) {
+    appendToLog(into, effort, 'Recorded', `- builds on ${needs.map((need) => `${need.effort} (${need.state === 'open' ? 'stacked on' : 'merged'})`).join(', ')}`);
+  }
   writeIndex(aepIn(surface, where));
   git(surface, ['add', '-A']);
   git(surface, ['commit', '--quiet', '-m', `docs(${effort}): open the effort`]);
   fs.rmSync(draft, { recursive: true, force: true });
   if (draft === candidates[1]) writeIndex(root);
 
-  const setup = warm(where, settings, surface);
+  const setup = warm(where, settings, surface, { runtime });
   const tracker = settings.tracker === 'none' ? [] : [
     `create the issue from ${where.aepRel}/efforts/${effort}/spec.md, and rename the effort to the issue number if it differs`,
-    `push ${effort} and open a draft pull request carrying the run log`,
+    `push ${branch} and open a draft pull request carrying the run log`,
   ];
+  if (settings.tracker !== 'none' && needs.length > 0) {
+    tracker.push(`set each builds-on edge as a dependency of the issue, and name it in the pull request body: ${needs.map((need) => need.effort).join(', ')}`);
+  }
   return {
-    effort, lane, number, base, branch: effort, surface, opened: 'created', setup, tracker,
+    effort, lane, number, base, branch, adopted, surface, opened: 'created', setup, tracker,
+    builds_on: needs.map(({ effort: name, state }) => ({ effort: name, state })),
     summary: runtime
-      ? `opened ${effort} (${lane}) in the surface the runtime supplied, from ${basis}; no second surface taken`
+      ? `opened ${effort} (${lane}) in the surface the runtime supplied, ${adopted ? 'on' : 'from'} ${basis}; no second surface taken`
       : `opened ${effort} (${lane}) on a new surface at ${rel(where, surface)}, from ${basis}`,
   };
 }
@@ -533,11 +926,29 @@ function start(root, args) {
     else if (scope.claim.length > 1) throw new Stop(`this branch claims more than one effort: ${scope.claim.join(', ')}. Name one`, { claim: scope.claim });
     else throw new Stop('nothing to start: name an effort, or open one with aep open');
   }
-  const effort = resolveEffort(where, wanted);
-  const { surface, entered } = enterSurface(where, effort, scope);
+  const { effort, branch } = resolveEffort(where, wanted);
+  const { surface, entered } = enterSurface(where, effort, branch, scope);
+
+  // One session per surface. Another session's live lease stops this one;
+  // a stale one is taken over; without a session id nothing is taken. The
+  // lease is taken only by a session standing in the surface: one that has
+  // still to move may hand the surface to another session, such as a thread it
+  // launches there, and a lease taken from outside is one no hook renews.
+  const session = sessionOf(args);
+  const runtime = detectRuntime();
+  const held = guardLease(aepIn(surface, where), effort, surface, session);
+  const move = !same(surface, where.repo);
+
   const effortDir = path.join(aepIn(surface, where), 'efforts', effort);
   const spec = readSpec(effortDir);
   const dirty = dirtyPaths(surface);
+  let lease = 'none: no session id';
+  if (move) lease = 'none: taken once the session stands in the surface';
+  else if (dirty.length > 0) lease = 'none: the surface is dirty';
+  else if (session) {
+    writeLease(aepIn(surface, where), { session, runtime: runtime?.name ?? null });
+    lease = { none: 'taken', mine: 'renewed', stale: `taken over from ${held?.session}` }[leaseState(held, session)];
+  }
   const marker = checkMarker(aepIn(surface, where));
   const state = plan(where, effortDir, spec);
   if (onlyTicket) {
@@ -545,7 +956,9 @@ function start(root, args) {
     state.ready = match ? [match] : [];
     state.build = 'here';
   }
-  const setup = dirty.length === 0 ? warm(where, settings, surface, { whenChanged: true }) : { ran: false, reason: 'dirty' };
+  const setup = dirty.length === 0
+    ? warm(where, settings, surface, { whenChanged: true, runtime: entered === 'runtime' || entered === 'elsewhere' })
+    : { ran: false, reason: 'dirty' };
   const stop = dirty.length > 0
     ? `the surface has uncommitted changes nobody can attribute: ${dirty.join(', ')}. Commit, move, or discard them, then start again`
     : null;
@@ -555,8 +968,11 @@ function start(root, args) {
   if (state.ready.length) parts.push(`${state.ready.length} ready`);
   if (Object.keys(state.blocked).length) parts.push(`${Object.keys(state.blocked).length} blocked`);
   parts.push(`next: ${stop ? 'stop' : state.next}`);
+  if (move) parts.push(`move into ${surface}`);
   return {
-    effort, lane: spec.lane, status: spec.status, surface, entered, role: 'orchestrator', claim: scope.claim, isolation,
+    effort, branch, lane: spec.lane, status: spec.status, surface, entered, move, lease, session,
+    runtime: runtime ? { name: runtime.name, reference: `${where.aepRel}/references/${runtime.reference}.md` } : null,
+    role: 'orchestrator', claim: scope.claim, isolation,
     dirty, drift: !marker.matches, marker: marker.message,
     frontier: state.ready, blocked: state.blocked, parked: state.parked, wave: state.build,
     rounds: state.rounds, next: stop ? 'stop' : state.next, needs_you: state.needsYou,
@@ -570,10 +986,14 @@ function dispatch(root, args) {
   const settings = readSettings(root);
   const [effortArg, ...ids] = args.positional;
   if (!effortArg || ids.length === 0) throw new Stop('usage: aep dispatch <effort> <ticket>...');
-  const effort = resolveEffort(where, effortArg);
-  const surface = runSurface(where, effort);
+  const { effort, branch: effortBranch } = resolveEffort(where, effortArg);
+  // The children branch from wherever the effort's branch is held, `_run` or a
+  // surface the runtime supplied, and always stand under the main checkout's
+  // worktrees, because their path is what makes them implementers.
+  const surface = requireHome(where, effort, effortBranch);
+  renewLease(aepIn(surface, where), sessionOf(args));
   const effortDir = path.join(aepIn(surface, where), 'efforts', effort);
-  if (!fs.existsSync(effortDir)) throw new Stop(`${effort} has no run surface yet. Run aep start ${effort} first`);
+  if (!fs.existsSync(effortDir)) throw new Stop(`${effort} is not in ${surface}. Run aep start ${effort} first`);
   const tip = git(surface, ['rev-parse', 'HEAD']);
   const trees = worktreeList(where.repo);
 
@@ -624,10 +1044,9 @@ function land(root, args) {
   const [effortArg, ticketArg] = args.positional;
   const message = args.flags.message;
   if (!effortArg) throw new Stop('usage: aep land <effort> [<ticket>] --message <text>');
-  const effort = resolveEffort(where, effortArg);
-  const surface = runSurface(where, effort);
-  const scope = resolveScope(aepIn(fs.existsSync(surface) ? surface : where.repo, where));
-  const here = scope && scope.surface.kind === 'runtime' ? where.repo : surface;
+  const { effort, branch: effortBranch } = resolveEffort(where, effortArg);
+  const here = requireHome(where, effort, effortBranch);
+  renewLease(aepIn(here, where), sessionOf(args));
   const effortDir = path.join(aepIn(here, where), 'efforts', effort);
   const spec = readSpec(effortDir);
   const rules = laneRules(spec.lane);
@@ -729,10 +1148,15 @@ function close(root, args) {
   const settings = readSettings(root);
   const [effortArg] = args.positional;
   if (!effortArg) throw new Stop('usage: aep close <effort> [--stop <reason>]');
-  const effort = resolveEffort(where, effortArg);
+  const { effort, branch } = resolveEffort(where, effortArg);
   const surface = runSurface(where, effort);
-  const runtime = !fs.existsSync(surface);
-  const here = runtime ? where.repo : surface;
+  // A close re-run after the detach finds `_run` holding no branch, and goes on
+  // from there, so the command stays safe to run twice.
+  const here = homeOf(where, branch) ?? (fs.existsSync(surface) ? surface : requireHome(where, effort, branch));
+  // Any home but `_run` is a surface the runtime supplied. AEP made none of it,
+  // so it detaches and removes nothing there.
+  const runtime = !same(here, surface);
+  guardLease(aepIn(here, where), effort, here, sessionOf(args));
   const effortDir = path.join(aepIn(here, where), 'efforts', effort);
   const spec = readSpec(effortDir);
   const rules = laneRules(spec.lane);
@@ -767,6 +1191,8 @@ function close(root, args) {
     ? git(here, ['log', '-1', '--format=%B'])
     : `docs(${effort}): close`, { amend: amend && dirtyPaths(here).length > 0 });
   stampMarker(aepIn(here, where), args.flags.session ?? null);
+  // The run is over here, so its lease goes with it.
+  yieldLease(aepIn(here, where), sessionOf(args));
 
   const outcome = { effort, closed: stopReason ? 'stopped' : 'clean', commit: sha };
   if (runtime) {
@@ -791,19 +1217,96 @@ function close(root, args) {
   outcome.tracker = settings.tracker === 'none' ? [] : stopReason
     ? ['mirror the run log into the pull request; leave it a draft']
     : ['mirror the run log into the pull request', 'mark the pull request ready for review'];
-  outcome.summary = stopReason
-    ? `stopped ${effort}: branch released, surface kept at ${rel(where, surface)}`
-    : `closed ${effort}: branch released${outcome.removed ? ', surface removed' : ''}`;
+  if (runtime) {
+    outcome.summary = `${stopReason ? 'stopped' : 'closed'} ${effort}: the runtime's surface at ${here} is left as the runtime made it`;
+  } else {
+    outcome.summary = stopReason
+      ? `stopped ${effort}: branch released, surface kept at ${rel(where, surface)}`
+      : `closed ${effort}: branch released${outcome.removed ? ', surface removed' : ''}`;
+  }
   return outcome;
+}
+
+/**
+ * Frees an effort's branch, so a session in another runtime can take it in a
+ * worktree of its own, and leaves the effort open.
+ *
+ * Only `_run` is released: it is the one surface holding an effort branch that
+ * AEP made. A worktree the runtime supplied is the runtime's, so the command
+ * stops there and names the directory to continue in instead. Nothing
+ * uncommitted is carried, because a release that dropped work would lose it;
+ * the session's handoff, which lives in that surface's scratch, is carried to
+ * the main checkout's scratch, where every surface can read it.
+ */
+function release(root, args) {
+  const where = locate(root);
+  const [effortArg] = args.positional;
+  if (!effortArg) throw new Stop('usage: aep release <effort>');
+  const { effort, branch } = resolveEffort(where, effortArg);
+  const surface = runSurface(where, effort);
+  const home = homeOf(where, branch);
+  // AEP releases only its own surface.
+  if (home && !same(home, surface)) throw heldElsewhere(where, effort, branch, home);
+  if (!fs.existsSync(surface)) {
+    return { effort, branch, released: false, summary: `${branch} of ${effort} is held by no surface; any runtime can take it` };
+  }
+  if (same(where.repo, surface)) {
+    throw new Stop(`run aep release from outside the surface it removes, such as the main checkout at ${where.main}`);
+  }
+  guardLease(aepIn(surface, where), effort, surface, sessionOf(args));
+  const dirty = dirtyPaths(surface);
+  if (dirty.length > 0) {
+    throw new Stop(`the surface has uncommitted changes: ${dirty.join(', ')}. Commit or land them first; a release never carries uncommitted work`);
+  }
+  if (home) git(surface, ['switch', '--quiet', '--detach']);
+
+  const carried = [];
+  const from = path.join(aepIn(surface, where), 'scratch');
+  const to = path.join(aepIn(where.main, where), 'scratch');
+  if (fs.existsSync(from)) {
+    for (const name of fs.readdirSync(from).filter((entry) => entry.startsWith('handoff-') && entry.endsWith('.md'))) {
+      fs.mkdirSync(to, { recursive: true });
+      fs.copyFileSync(path.join(from, name), path.join(to, name));
+      carried.push(path.join(to, name));
+    }
+  }
+  const removed = git(where.main, ['worktree', 'remove', surface], { allowFail: true }) !== null;
+  const holder = path.dirname(surface);
+  if (removed && fs.existsSync(holder) && fs.readdirSync(holder).length === 0) fs.rmdirSync(holder);
+  const outcome = { effort, branch, released: true, removed, carried };
+  if (!removed) outcome.remove_by_hand = `git worktree remove "${surface}"  (run from ${where.main})`;
+  outcome.summary = `released ${branch} of ${effort}: any runtime can take it now${carried.length ? `; handoff kept at ${carried.join(', ')}` : ''}`;
+  return outcome;
+}
+
+/**
+ * Gives up this session's lease on a surface, so another runtime's session can
+ * take the effort at once rather than after the stale window. With no effort,
+ * the surface is the directory the command runs in.
+ */
+function yieldSurface(root, args) {
+  const where = locate(root);
+  let surface = where.repo;
+  let effort = null;
+  if (args.positional[0]) {
+    const resolved = resolveEffort(where, args.positional[0]);
+    effort = resolved.effort;
+    surface = requireHome(where, effort, resolved.branch);
+  }
+  const outcome = yieldLease(aepIn(surface, where), sessionOf(args));
+  return {
+    effort, surface, ...outcome,
+    summary: outcome.yielded ? `yielded ${outcome.reason} at ${surface}` : `nothing yielded at ${surface}: ${outcome.reason}`,
+  };
 }
 
 function raise(root, args) {
   const where = locate(root);
   const [effortArg, lane] = args.positional;
   if (!effortArg || !LANES.includes(lane)) throw new Stop(`usage: aep raise <effort> <${LANES.join('|')}> --reason <text>`);
-  const effort = resolveEffort(where, effortArg);
-  const surface = runSurface(where, effort);
-  const here = fs.existsSync(surface) ? surface : where.repo;
+  const { effort, branch } = resolveEffort(where, effortArg);
+  const here = requireHome(where, effort, branch);
+  renewLease(aepIn(here, where), sessionOf(args));
   const effortDir = path.join(aepIn(here, where), 'efforts', effort);
   const spec = readSpec(effortDir);
   const from = LANES.indexOf(spec.lane);
@@ -837,9 +1340,9 @@ function record(root, args) {
   const [kind] = kinds;
   const text = String(args.flags[kind]).trim();
   if (!text) throw new Stop(`--${kind} needs a line`);
-  const effort = resolveEffort(where, effortArg);
-  const surface = runSurface(where, effort);
-  const here = fs.existsSync(surface) ? surface : where.repo;
+  const { effort, branch } = resolveEffort(where, effortArg);
+  const here = requireHome(where, effort, branch);
+  renewLease(aepIn(here, where), sessionOf(args));
   const effortDir = path.join(aepIn(here, where), 'efforts', effort);
   const spec = readSpec(effortDir);
   const file = ensureLog(effortDir, effort);
@@ -881,8 +1384,16 @@ export function boardFor(repoDir) {
   const base = resolveBase(where.repo);
   const trees = worktreeList(where.repo);
   const efforts = [];
-  for (const branch of effortBranches(where)) {
-    const dir = `${where.aepRel}/efforts/${branch}`;
+  const index = effortIndex(where);
+  for (const effort of [...index.keys()].sort()) {
+    let branch;
+    try {
+      branch = branchFrom(index, effort);
+    } catch (error) {
+      efforts.push({ effort, lane: 'unknown', status: 'held twice', tickets: { total: 0, resolved: 0, ready: [], blocked: [] }, surface: null, last: '-', waiting: [error.message] });
+      continue;
+    }
+    const dir = `${where.aepRel}/efforts/${effort}`;
     const specText = showAt(where.repo, branch, `${dir}/spec.md`);
     const fields = frontmatterOf(specText);
     const lane = LANES.includes(fields.lane) ? fields.lane : 'full';
@@ -904,17 +1415,48 @@ export function boardFor(repoDir) {
     }
     const logText = showAt(where.repo, branch, `${dir}/log.md`) ?? '';
     const holder = trees.find((tree) => tree.branch === branch);
-    const kept = path.join(aepIn(where.main, where), 'worktrees', branch, '_run');
+    // Where a surface holds the branch, its lease and next step are read there,
+    // so a session arriving from any runtime sees who works where, and on what.
+    let lease = null;
+    let next = null;
+    if (holder) {
+      const aepDir = aepIn(holder.path, where);
+      const held = readLease(aepDir);
+      if (held) {
+        lease = { session: held.session, runtime: held.runtime ?? null, state: leaseState(held, null), active_minutes_ago: minutesSince(held.renewed) };
+      }
+      try {
+        const effortDir = path.join(aepDir, 'efforts', effort);
+        next = plan(where, effortDir, readSpec(effortDir)).next;
+      } catch {
+        // A surface mid-change may not read cleanly; the board still shows it.
+      }
+    }
+    const kept = path.join(aepIn(where.main, where), 'worktrees', effort, '_run');
     const merged = base ? git(where.repo, ['merge-base', '--is-ancestor', branch, base], { allowFail: true }) !== null : false;
     const waiting = [...logSection(logText, 'Needs you')];
+    let buildsOn;
+    try {
+      buildsOn = dependencies(where, index, fields['builds-on']).map(({ effort: name, state }) => ({ effort: name, state }));
+    } catch (error) {
+      // An edge naming nothing is the validator's and the run's to report; the
+      // board shows it rather than failing.
+      buildsOn = [{ effort: String(error.extra?.unknown ?? fields['builds-on']), state: 'unknown' }];
+    }
     if (fields.status === 'implemented' && !merged) waiting.push('ready to merge');
     if (!holder && fs.existsSync(kept) && fields.status !== 'implemented') waiting.push(`stopped; surface kept at ${rel(where, kept)}`);
     efforts.push({
-      effort: branch,
+      effort,
+      branch,
       lane,
       status: merged ? 'merged' : (fields.status ?? 'unknown'),
+      builds_on: buildsOn,
+      next,
+      lease,
       tickets: { total: tickets.length, resolved: tickets.filter((t) => t.status !== 'open').length, ready, blocked },
-      surface: holder ? rel(where, holder.path) : null,
+      // A surface outside the main checkout, such as a runtime's, has no useful
+      // relative spelling, so it is shown whole.
+      surface: holder ? (rel(where, holder.path).startsWith('..') ? holder.path : rel(where, holder.path)) : null,
       last: git(where.repo, ['log', '-1', '--format=%h %s (%cr)', branch]),
       waiting: merged ? [] : waiting,
     });
@@ -933,7 +1475,14 @@ function renderBoard(boards) {
         ? `${effort.tickets.resolved}/${effort.tickets.total} tickets${effort.tickets.ready.length ? `, ready ${effort.tickets.ready.join(' ')}` : ''}`
         : 'no tickets';
       out.push(`  ${effort.effort.padEnd(28)} ${effort.lane.padEnd(8)} ${effort.status.padEnd(11)} ${tickets}`);
-      out.push(`  ${''.padEnd(28)} ${effort.surface ? `surface ${effort.surface}` : 'no surface'}; last ${effort.last}`);
+      const on = effort.branch && effort.branch !== effort.effort ? `on ${effort.branch}, ` : '';
+      out.push(`  ${''.padEnd(28)} ${on}${effort.surface ? `surface ${effort.surface}` : 'no surface'}; last ${effort.last}`);
+      if (effort.lease) {
+        out.push(`  ${''.padEnd(28)} lease: session ${effort.lease.session}${effort.lease.runtime ? ` (${effort.lease.runtime})` : ''}, ${effort.lease.state}, active ${effort.lease.active_minutes_ago} min ago`);
+      }
+      if (effort.builds_on?.length) {
+        out.push(`  ${''.padEnd(28)} builds on ${effort.builds_on.map((need) => `${need.effort} (${need.state})`).join(', ')}`);
+      }
       for (const item of effort.waiting) waiting.push(`${path.basename(board.repo)}/${effort.effort}: ${item.replace(/^-\s*/, '')}`);
     }
     out.push('');
@@ -997,7 +1546,7 @@ export function parseArgs(argv) {
   return { positional, flags };
 }
 
-const COMMANDS = { status, open, start, dispatch, land, close, raise, record, check };
+const COMMANDS = { status, open, start, dispatch, land, close, release, yield: yieldSurface, raise, record, check };
 
 export function run(argv, { cwdRoot = null } = {}) {
   const [command, ...rest] = argv;

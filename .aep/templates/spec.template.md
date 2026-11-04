@@ -19,6 +19,7 @@ considered-and-empty; an absent one reads as not yet reached, which is the truth
 ---
 status: draft            # draft → accepted → implemented
 lane: standard           # quick | standard | full; only ever raised
+builds-on: [<effort>]    # efforts this needs, by directory or number; omit when none
 ---
 
 # Problem

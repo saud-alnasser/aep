@@ -116,23 +116,24 @@ export function resolveBase(repo) {
 }
 
 /**
- * The efforts the branch's own commits touch, from the merge base with the base
- * branch.
+ * The efforts a branch's own commits touch, from the merge base with the base
+ * branch. `ref` is `HEAD` for the run's own claim, and any local branch where
+ * the command line asks which branch holds an effort, whatever it is called.
  *
- * Empty where there is no base to measure against, and where HEAD is the base
- * itself, which is the ordinary state of the default branch. An effort that has
- * merged empties too, since its old branch then diffs to nothing, and that is
- * correct rather than a defect.
+ * Empty where there is no base to measure against, and where the ref is the
+ * base itself, which is the ordinary state of the default branch. An effort
+ * that has merged empties too, since its old branch then diffs to nothing, and
+ * that is correct rather than a defect.
  */
-function claimFromContent(repo, base, prefix) {
+export function claimOfRef(repo, base, prefix, ref = 'HEAD') {
   if (!base) return [];
 
-  const revs = git(repo, ['rev-parse', 'HEAD', `${base}^{commit}`]);
+  const revs = git(repo, ['rev-parse', `${ref}^{commit}`, `${base}^{commit}`]);
   if (revs === null) return [];
   const [head, baseCommit] = revs.trim().split(/\r?\n/);
   if (head && head === baseCommit) return [];
 
-  const diff = git(repo, ['diff', '--name-only', `${base}...HEAD`, '--', prefix]);
+  const diff = git(repo, ['diff', '--name-only', `${base}...${ref}`, '--', prefix]);
   if (diff === null) return [];
   return efforts(diff.split(/\r?\n/).map((file) => effortOf(file.trim(), prefix)));
 }
@@ -389,7 +390,7 @@ export function resolveScope(root) {
   const branch = named === null || named.trim() === 'HEAD' ? null : named.trim();
 
   const base = resolveBase(repo);
-  const content = claimFromContent(repo, base, prefix);
+  const content = claimOfRef(repo, base, prefix);
   const claim = content.length > 0 ? content : claimFromName(branch, treeIndex(root));
 
   const working = workingSet(repo, prefix);

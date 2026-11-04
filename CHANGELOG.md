@@ -1,5 +1,174 @@
 # Changelog
 
+## 4.5.0
+
+AEP now uses each runtime's own tools for parallel work, review, and
+handoffs, rather than only the subset every runtime shares.
+
+### Added
+
+- **Runtime playbooks.** `.aep/references/t3code.md` and a new
+  `.aep/references/claude-code.md` each say how to build tickets, review,
+  research, and continue an effort in that runtime.
+  - Under T3 Code, each ticket runs as its own thread on the ticket's worktree,
+    so it shows in the sidebar, and the orchestrator waits on it with
+    `t3_thread_wait`. Review and research go through `delegate_task`, and a
+    review can run on a second provider.
+  - Under Claude Code, each ticket runs as a background implementer sub-agent,
+    and continuing an effort enters its worktree with `EnterWorktree`.
+- **`aep start` names the runtime.** Its JSON carries `runtime.name` and
+  `runtime.reference`, detected from the environment. A session under T3 Code
+  counts as T3 Code even though Claude Code is running inside it.
+
+### Changed
+
+- Both runtime references are installed in every repository, not only one
+  with a `t3.json`, because the runtime is each developer's choice.
+- Briefs name the ticket worktree by its absolute path, since a sub-agent
+  starts in its parent's directory.
+
+### Upgrading
+
+`aep:update` writes whichever runtime reference is missing. An existing
+`t3code.md` is yours and stays as it was; the upgrade notice says what to take
+from the new one.
+
+## 4.4.0
+
+Moving an effort between runtimes no longer takes the developer. The agent
+finds where the effort lives and moves there itself, and a lease keeps two
+sessions from working in the same place.
+
+### Added
+
+- **`aep start` works from anywhere.** It returns the surface that holds the
+  effort, whether that is `_run` or another runtime's worktree, with
+  `move: true` when that isn't the current directory. The agent moves there. It
+  stops only when the main checkout has the effort's branch checked out, or when
+  another session is working in the surface.
+- **Leases.** `.aep/scratch/lease.json` in a surface records which session works
+  there, in which runtime, and when it last acted. `start` takes the lease once
+  the session stands in the surface, and every command that acts on the effort
+  renews it. `release` and `close` refuse a surface another session holds. A
+  lease left unrenewed for an hour goes stale, and the next session takes it
+  over. The session id comes from the runtime, or from `--session`.
+- **`aep yield`** gives up this session's lease, so the next session can take
+  the effort straight away.
+- **Claude Code session hooks.**
+  - At the start of a session, the hook tells the agent which effort it is
+    standing in and the next step, or which efforts are open and where.
+  - After every turn, the hook renews the lease.
+  - At the end of the session, the hook gives the lease up.
+- **`aep status`** shows each surface's lease and the effort's next step.
+
+### Changed
+
+- `start` used to stop with `continue_in` when another runtime's worktree held
+  the branch. It now returns that worktree. `release` still refuses to remove
+  a runtime's worktree.
+- The implement and handoff skills leave every move to the agent.
+
+### Upgrading
+
+Nothing to do. The hooks come with the Claude Code plugin, and other runtimes
+pick up the same behaviour from the skills.
+
+## 4.3.0
+
+An effort can now say which other efforts it needs. Before, tickets could wait
+on each other inside one effort, but nothing ordered efforts. Running separate
+issues in parallel threads was safe only if someone had checked by hand that
+none of them needed another.
+
+### Added
+
+- **`builds-on:`** in a spec's frontmatter names the efforts it needs, by
+  directory or by number. Under a tracker, the number is the issue number.
+- **`aep open` respects it.** Once every named effort has merged, it opens as
+  before. If one is still open and the repository stacks (`stack: true`), the
+  new branch starts from that effort's branch. In a runtime thread made from
+  that branch, `open` keeps the thread's branch; in one made from the default
+  branch, even a newer one, `open` moves it onto the effort first. Naming a
+  whole chain of open efforts stacks on its tip. If the repository doesn't
+  stack, or two unrelated named efforts are open, `open` waits. It says what it
+  waits on and keeps the draft.
+- **`aep status`** shows each effort's `builds-on:` and whether each one has
+  merged.
+- **Under a tracker,** each edge becomes a real issue dependency
+  (`--add-blocked-by`), and the pull request body opens with
+  `Builds on #<issue>`.
+
+### Upgrading
+
+Nothing to do. Efforts without `builds-on:` behave exactly as before.
+
+## 4.2.0
+
+AEP already ran under T3 Code, because T3 Code drives the same provider CLIs AEP
+installs into. But a few things went wrong at the seams. `aep open` in a T3
+thread switched off the branch T3 had made, so T3's branch and pull request
+views pointed at a branch nobody worked on. The other commands could not find an
+effort on a branch called `t3/<slug>`. Setup ran twice. A child started through
+T3's own delegation thought it was an orchestrator. And the seeded T3 Code
+reference described worktree paths T3 no longer uses.
+
+4.2 fixes those without tying AEP to T3 Code, which describes itself as very
+early. Nothing in the policies, skills, or scripts names it, apart from the
+reference and one line of data. The same changes let one effort move between
+runtimes: begin it in a T3 thread, finish it in the Claude Code CLI, or the
+other way round.
+
+### Added
+
+- **`aep release <effort>`.** It frees an effort's branch from AEP's own
+  `_run` worktree so another runtime can take it in a worktree of its own. It
+  refuses uncommitted work, removes `_run`, carries the session's handoff to
+  the main checkout's `.aep/scratch/`, and leaves the effort open.
+- **`continue_in`.** When another runtime's worktree holds an effort's branch,
+  `aep start` stops and names that directory, so the next session can start
+  there.
+- **`runtime-setup:`** in `rules/version-control.md`: `auto` (the default),
+  `aep`, or `runtime`. It says who sets up a worktree the runtime created.
+  `auto` skips AEP's `setup:` where a known runtime file declares its own
+  worktree setup, which today means a `t3.json` script with
+  `runOnWorktreeCreate`. A lockfile change afterwards still runs `setup:`.
+
+### Changed
+
+- **`aep open` in a runtime's worktree commits on the runtime's branch.** It
+  creates a branch only where the worktree is detached or stands on the
+  default branch, and stops where the branch already holds an effort: one
+  thread is one effort.
+- **Every command finds an effort by what a branch's commits add.** A branch
+  holds the efforts whose `spec.md` it adds, whatever it is called, and branch
+  names may contain `/`. A ticket branch is never taken as its effort's branch.
+  Where two branches hold one effort, the one holding fewer efforts is its own,
+  since a branch stacked on it holds one more; a tie stops the command with both
+  named.
+- **Every command acts where the effort's branch is held.** `dispatch` works
+  from a runtime's worktree and still puts each child under the main
+  checkout's `.aep/worktrees/`. `record` and `raise` run from the main checkout
+  no longer write into it.
+- **Where a child runs.** An implementer runs only in a surface `aep dispatch`
+  created, as a sub-agent or as a runtime thread opened there, and stops if
+  its surface reports any other role. A runtime's own delegation, such as T3
+  Code's `delegate_task`, carries read-only work only.
+- **The protocol's write zones** name the runtime's worktree you stand in.
+- **The T3 Code reference** is rewritten from T3 Code's source, pinned to the
+  commit it was read from, with a way to re-check each fact. It covers where
+  thread worktrees live, how branches are named and renamed, setup, the three
+  ways to run a child, continuing in another runtime, and the sandbox setting
+  `aep dispatch` needs under Claude Code.
+
+### Upgrading
+
+`/aep:update` brings the new command line, policies, and skills. Nothing you
+own changes shape. If you run AEP through T3 Code, the update asks you to
+compare your `.aep/references/t3code.md` with the shipped one, since an upgrade
+never edits a reference you own, and to set `runtime-setup:` if the default
+guess about T3's setup action is wrong for you. Efforts already open keep
+working: a branch named for its effort resolves exactly as before.
+
 ## 4.1.0
 
 Until now AEP had one way of writing for everything a human reads. `prose`

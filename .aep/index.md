@@ -35,8 +35,10 @@ Start at [[protocol]].
 | Artifact | Load when | Owner |
 | --- | --- | --- |
 | [[references/build]] | checking, regenerating, or installing this repository's own output | — |
+| [[references/claude-code]] | running AEP in Claude Code, choosing how to run a child there, or moving an effort into or out of a Claude Code session | — |
 | [[references/git]] | running any git operation here — reading state, branching, staging, committing, or working with worktrees | — |
 | [[references/github]] | reading or writing GitHub issues, pull requests, or checks for this repository | — |
+| [[references/t3code]] | running AEP through T3 Code, choosing how to run a child under it, or explaining why a skill is or is not offered there | — |
 
 ## Skills
 
@@ -98,6 +100,7 @@ Start at [[protocol]].
 | 54-working-surface | implemented | [[efforts/54-working-surface/spec]] | 2 | 0 | 16 |
 | 56-surface-position | accepted | [[efforts/56-surface-position/spec]] | 0 | 0 | 17 |
 | 60-session-register | implemented | [[efforts/60-session-register/spec]] | 1 | 0 | 8 |
+| 64-runtime-surfaces | implemented | [[efforts/64-runtime-surfaces/spec]] | 4 | 0 | 6 |
 | context-namespacing | implemented | [[efforts/context-namespacing/spec]] | 0 | 0 | 4 |
 | policy-rule-split | implemented | [[efforts/policy-rule-split/spec]] | 0 | 0 | 12 |
 | readable-output | implemented | [[efforts/readable-output/spec]] | 0 | 0 | 11 |
@@ -213,6 +216,12 @@ Every task of every effort. The tracker carries the effort, never its tasks.
 | [[efforts/60-session-register/tickets/06-specification]] docs(spec): the specification states three registers and supersedes the exempt brief | 60-session-register | resolved | 02, 03, 04, 05 |
 | [[efforts/60-session-register/tickets/07-release]] chore(dist): release 4.1.0 and reinstall this repository's tree | 60-session-register | resolved | 01, 02, 03, 04, 05, 06 |
 | [[efforts/60-session-register/tickets/08-more-option-sets]] feat(skills): prune's proposal and the UI prototype's pick are option sets | 60-session-register | resolved | 03 |
+| [[efforts/64-runtime-surfaces/tickets/01-command-line]] feat(cli): the command line works from a runtime's worktree on any branch name | 64-runtime-surfaces | resolved | — |
+| [[efforts/64-runtime-surfaces/tickets/02-governance]] docs(protocol): where a child runs, the runtime's worktree, and the T3 Code reference | 64-runtime-surfaces | resolved | 01 |
+| [[efforts/64-runtime-surfaces/tickets/03-release]] chore(dist): release 4.2.0 and reinstall this repository's tree | 64-runtime-surfaces | resolved | 02 |
+| [[efforts/64-runtime-surfaces/tickets/04-builds-on]] feat(cli): an effort declares the efforts it builds on, and stacks on or waits for them | 64-runtime-surfaces | resolved | 03 |
+| [[efforts/64-runtime-surfaces/tickets/05-handoff]] feat(cli): the agent moves an effort between runtimes by itself, guarded by a lease | 64-runtime-surfaces | resolved | 04 |
+| [[efforts/64-runtime-surfaces/tickets/06-playbooks]] feat(runtime): each runtime gets a playbook, chosen by detecting the runtime | 64-runtime-surfaces | resolved | 05 |
 | [[efforts/context-namespacing/tickets/01-shape]] docs(specs): a context may be namespaced by project, and the template says so | context-namespacing | resolved | — |
 | [[efforts/context-namespacing/tickets/02-validate]] feat(validate): a context sits one project directory deep, no more | context-namespacing | resolved | — |
 | [[efforts/context-namespacing/tickets/03-verify]] test(verify): the contexts contract is asserted, including that it stays walked | context-namespacing | resolved | 01, 02 |
