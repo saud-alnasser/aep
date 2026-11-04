@@ -1,5 +1,25 @@
 # Changelog
 
+## 4.5.1
+
+Under T3 Code, an effort's tickets run inside the effort's thread again, so
+T3's sidebar shows one thread per effort.
+
+### Changed
+
+- **Tickets run as sub-agents of the effort's thread.** The T3 Code playbook in
+  4.5.0 launched a thread per ticket, and each one took a row in T3's sidebar.
+  T3 already shows a provider's own sub-agents under the thread that started
+  them, with their transcripts, so tickets now run that way, the same as in
+  Claude Code. `t3_thread_launch` is used only to continue an effort in T3.
+- The playbook says to run the effort's thread at `full-access`. At a narrower
+  mode, a sub-agent's writes to its ticket worktree are prompted or refused.
+
+### Upgrading
+
+Nothing to do: 4.5.0 and 4.5.1 ship together, and the 4.5.0 notice already
+covers the T3 Code reference.
+
 ## 4.5.0
 
 AEP now uses each runtime's own tools for parallel work, review, and

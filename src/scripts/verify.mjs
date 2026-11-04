@@ -8558,12 +8558,16 @@ section('scope surfaces', () => {
   const claudeCode = flat(readSrc('seed', 'references', 'claude-code.md'));
   const playbook = (text) => ['Building tickets', 'Reviewing', 'Researching', 'Continuing an effort']
     .every((heading) => text.includes(`### ${heading}`));
-  assert('the T3 Code playbook builds tickets as launched threads and reviews through delegate_task', () =>
+  // 4.5.1: one T3 thread is one effort, so a ticket runs inside it.
+  assert('the T3 Code playbook builds tickets as sub-agents of the effort\'s thread and reviews through delegate_task', () =>
     playbook(readSrc('seed', 'references', 't3code.md'))
-    && /`t3_thread_launch` with `title` set to the ticket's title, `message` set to the brief/.test(t3)
-    && /`t3_thread_wait`/.test(t3) && /`t3_thread_read`/.test(t3)
+    && /\*\*One thread is one effort\*\*, and so one pull request\./.test(t3)
+    && /Start each ticket as a sub-agent of your provider, in the background/.test(t3)
+    && /\*\*Never `t3_thread_launch` a ticket\.\*\*/.test(t3)
     && /`delegate_task` with `isolation: "shared"`/.test(t3) && /Set `target` to a second provider/.test(t3)
     && /at commit `9e85538535c8`/.test(t3));
+  assert('specs.md §21.1 keeps one T3 thread per effort', () =>
+    /\*\*Under T3 Code, one thread is one effort\*\*, and so one pull request: a ticket MUST NOT be given a thread of its own/.test(runtimeSpec));
   assert('the Claude Code playbook builds tickets as background implementers and continues with EnterWorktree', () =>
     playbook(readSrc('seed', 'references', 'claude-code.md'))
     && /`subagent_type: "aep:implementer"`/.test(claudeCode) && /`run_in_background: true`/.test(claudeCode)

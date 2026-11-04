@@ -195,15 +195,20 @@ GitHub shows them.
     T3 Code is tried before Claude Code, since T3 starts Claude Code.
 19. `references/t3code.md` and a new `references/claude-code.md` each carry a
     playbook: how to build tickets, review, research, and continue an effort in
-    that runtime. Under T3 Code, tickets run as T3 threads bound to the ticket
-    surface and joined with `t3_thread_wait`; review and research run through
-    `delegate_task`, review optionally on a second provider; continuing launches
-    a thread on the effort's surface. Under Claude Code, tickets run as
+    that runtime. Under T3 Code, tickets run as the provider's own sub-agents
+    inside the effort's thread (requirement 21); review and research run
+    through `delegate_task`, review optionally on a second provider; continuing
+    launches a thread on the effort's surface. Under Claude Code, tickets run as
     background implementer sub-agents; continuing enters the surface with
     `EnterWorktree`. Both references are seeded in every repository.
-20. 4.3.0 ships 11 to 13, 4.4.0 ships 14 to 17, and 4.5.0 ships 18 and 19, each
-    with a changelog entry, and an upgrade notice where a repository must act.
-    `specs.md` states each normatively, with rationale.
+20. 4.3.0 ships 11 to 13, 4.4.0 ships 14 to 17, 4.5.0 ships 18 and 19, and
+    4.5.1 ships 21, each with a changelog entry, and an upgrade notice where a
+    repository must act. `specs.md` states each normatively, with rationale.
+21. **One T3 thread is one effort**, and so one pull request. T3's sidebar shows
+    one row per effort. A ticket never gets a thread of its own: it runs as a
+    sub-agent of the provider inside the effort's thread, which T3 shows under
+    that thread with its transcript and no sidebar row. `t3_thread_launch` only
+    puts an effort in T3, when it continues there from another runtime.
 
 # Acceptance Criteria
 
@@ -265,6 +270,10 @@ GitHub shows them.
     references are seeded into a repository with no `t3.json`.
 17. `node src/scripts/verify.mjs` passes, `protocol.md` declares 4.5.0, and the
     changelog has 4.3.0, 4.4.0, and 4.5.0 entries, each with its notice.
+18. The suite asserts that the T3 Code playbook builds tickets as sub-agents of
+    the effort's thread, never with `t3_thread_launch`, and that `specs.md`
+    states one thread per effort; `protocol.md` declares 4.5.1; the changelog
+    has a 4.5.1 entry; `verify.mjs` passes.
 
 # Constraints
 

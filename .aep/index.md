@@ -100,7 +100,7 @@ Start at [[protocol]].
 | 54-working-surface | implemented | [[efforts/54-working-surface/spec]] | 2 | 0 | 16 |
 | 56-surface-position | accepted | [[efforts/56-surface-position/spec]] | 0 | 0 | 17 |
 | 60-session-register | implemented | [[efforts/60-session-register/spec]] | 1 | 0 | 8 |
-| 64-runtime-surfaces | implemented | [[efforts/64-runtime-surfaces/spec]] | 4 | 0 | 6 |
+| 64-runtime-surfaces | implemented | [[efforts/64-runtime-surfaces/spec]] | 5 | 0 | 7 |
 | context-namespacing | implemented | [[efforts/context-namespacing/spec]] | 0 | 0 | 4 |
 | policy-rule-split | implemented | [[efforts/policy-rule-split/spec]] | 0 | 0 | 12 |
 | readable-output | implemented | [[efforts/readable-output/spec]] | 0 | 0 | 11 |
@@ -222,6 +222,7 @@ Every task of every effort. The tracker carries the effort, never its tasks.
 | [[efforts/64-runtime-surfaces/tickets/04-builds-on]] feat(cli): an effort declares the efforts it builds on, and stacks on or waits for them | 64-runtime-surfaces | resolved | 03 |
 | [[efforts/64-runtime-surfaces/tickets/05-handoff]] feat(cli): the agent moves an effort between runtimes by itself, guarded by a lease | 64-runtime-surfaces | resolved | 04 |
 | [[efforts/64-runtime-surfaces/tickets/06-playbooks]] feat(runtime): each runtime gets a playbook, chosen by detecting the runtime | 64-runtime-surfaces | resolved | 05 |
+| [[efforts/64-runtime-surfaces/tickets/07-one-thread]] fix(runtime): under T3 Code, tickets run inside the effort's thread | 64-runtime-surfaces | resolved | 06 |
 | [[efforts/context-namespacing/tickets/01-shape]] docs(specs): a context may be namespaced by project, and the template says so | context-namespacing | resolved | — |
 | [[efforts/context-namespacing/tickets/02-validate]] feat(validate): a context sits one project directory deep, no more | context-namespacing | resolved | — |
 | [[efforts/context-namespacing/tickets/03-verify]] test(verify): the contexts contract is asserted, including that it stays walked | context-namespacing | resolved | 01, 02 |

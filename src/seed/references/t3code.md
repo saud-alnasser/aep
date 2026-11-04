@@ -80,27 +80,41 @@ worktrees, because their path is what gives a child its role.
 How an orchestrator under T3 Code does each kind of work. `aep start` reports
 `runtime.name` as `T3 Code` when it runs here.
 
+**One thread is one effort**, and so one pull request. The sidebar holds one row
+per effort. Everything the effort runs, its tickets, reviewers, and researchers,
+runs inside its thread, as a sub-agent T3 shows under it.
+
 ### Building tickets
 
 1. `aep dispatch <effort> <ticket>` makes the ticket surface,
    `.aep/worktrees/<effort>/<ticket>`, and prints the brief.
-2. `t3_thread_launch` with `title` set to the ticket's title, `message` set to
-   the brief, and `workspaceStrategy: { type: "existing_worktree",
-   worktreePath: <ticket surface> }`. Set `modelSelection { instanceId, model }`
-   only to build on another provider; it defaults to yours.
-3. Launch every ticket the graph leaves free at once, then join each with
-   `t3_thread_wait` and read its return with `t3_thread_read`.
+2. Start each ticket as a sub-agent of your provider, in the background, with
+   the brief, which names the ticket surface by its absolute path. Under Claude
+   Code, that is the playbook in `[[references/claude-code]]`: the Agent tool
+   with `subagent_type: "aep:implementer"` and `run_in_background: true`.
+3. Start every ticket the graph leaves free at once. Each finished one notifies
+   you; never poll.
 4. `aep land <effort> <ticket>` for each one that returns done.
 
-Each launched thread gets its own row in T3's sidebar, so the developer can
-watch a ticket build. It inherits your runtime and interaction modes and can
-never exceed them. A provider sub-agent started in the ticket surface, such as
-Claude Code's implementer, is the fallback where launching is off.
+T3 turns each sub-agent of Claude Code or Codex, foreground or background, into
+a child thread of yours: no sidebar row, and shown in your thread's details and
+timeline with its status, its result, a Stop action, and its full transcript.
 
+- **Never `t3_thread_launch` a ticket.** A launched thread is a top-level
+  thread with a sidebar row of its own, which reads as a second effort.
+- The child records your thread's worktree, not the ticket surface, so T3's
+  diff and checkpoint views do not show a ticket's changes. `aep land` and the
+  effort's branch are the record.
 - In the ticket surface, the child's `scope.mjs read` prints `role: implementer`
   before it writes; any other role means it stands somewhere else, and it stops.
-- A launched thread also runs T3's setup action in the ticket surface, after
-  AEP's. Setup then runs twice there; an idempotent install only costs time.
+- **Modes.** The ticket surfaces are outside your thread's worktree. At
+  `full-access` nothing in T3 stops a child writing there. At a narrower mode,
+  Claude asks for each such write, and Codex's `workspaceWrite` sandbox refuses
+  it. Run the effort's thread at `full-access`, or build the tickets one at a
+  time in your own thread.
+- **Check:** after the first dispatch, the ticket shows under your thread and
+  not in the sidebar. Where it shows in the sidebar, T3 changed how it projects
+  sub-agents; correct this playbook.
 
 ### Reviewing
 
