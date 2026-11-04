@@ -68,10 +68,14 @@ import {
   CANONICAL_ENTRYPOINT,
 } from './payload.mjs';
 import { expectedFor } from './reconcile.mjs';
+import { RUNTIMES } from './aep.mjs';
 import { BUDGETS, HOT_PATH, budgetOf, countWords, runChecks } from './check.mjs';
 
 /** `src/`, the distribution. */
 const SRC = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+
+/** The reference each runtime `aep.mjs` detects points at, seeded in every repository. */
+const RUNTIME_REFERENCES = RUNTIMES.map((runtime) => `references/${runtime.reference}.md`);
 
 // Every fixture the suite makes goes through the temp API, and the boundary
 // says such a directory is removed before the run ends. Recorded as each is
@@ -1929,7 +1933,7 @@ section('policies', () => {
   assert('policies/tracker fixes exactly one issue and one pull request per effort', () =>
     /\*\*One issue and one pull request\*\*, and no other tracker object/.test(tracker));
   assert('policies/tracker keeps the ticket and its graph in the repository', () =>
-    /A ticket is never a tracker object, and the dependency graph never leaves the repository/.test(tracker));
+    /A ticket is never a tracker object, and the ticket graph never leaves the repository/.test(tracker));
   assert('policies/tracker keeps the tracker read-only into .aep/', () =>
     /The tracker is read, never mirrored into `\.aep\/`/.test(tracker));
   assert('policies/tracker proposes a tracker write before making it', () =>
@@ -2274,7 +2278,7 @@ section('the effort opens', () => {
   assert('the tracker policy states exactly two objects per effort', () =>
     tracker.includes('**One issue and one pull request**, and no other tracker object'));
   assert('a ticket is never a tracker object, and the graph never leaves the repository', () =>
-    tracker.includes('A ticket is never a tracker object, and the dependency graph never leaves the repository'));
+    tracker.includes('A ticket is never a tracker object, and the ticket graph never leaves the repository'));
   for (const [forge, unit] of [['github', 'pull request'], ['gitlab', 'merge request']]) {
     const seed = readSrc('seed', 'references', forge + '.md');
     assert('the ' + forge + ' seed heads its effort section with one issue and one ' + unit, () =>
@@ -3105,9 +3109,12 @@ section('seeds', () => {
   });
 
   // `detect: { paths: [] }` is truthy and matches nothing, so it reads as a
-  // gated seed and behaves as a retired one.
+  // gated seed and behaves as a retired one. The runtime references are the one
+  // exception, and only because the runtime is read from the session's
+  // environment: no file in a repository says which runtime opens it.
   assert('every reference seed is gated on evidence that can actually match', () => {
-    const dead = SEEDS.filter((seed) => seed.target.startsWith('references/')).filter(
+    const dead = SEEDS.filter((seed) => seed.target.startsWith('references/'))
+      .filter((seed) => !RUNTIME_REFERENCES.includes(seed.target)).filter(
       (seed) => !(seed.detect?.paths?.length > 0 || isNonEmptyString(seed.detect?.remote)));
     if (dead.length > 0) {
       throw new Error(`cannot ever install: ${dead.map((seed) => seed.target).join(', ')}`);
@@ -3133,11 +3140,13 @@ section('seeds', () => {
   assert('the seeded rule still puts the closing keyword in the pull request body', () =>
     /The keyword belongs in the pull request body/.test(seedVersionControl));
 
-  assert('the always-seeded set is the entrypoint, version control, and a repository context', () => {
+  assert('the always-seeded set is the entrypoint, version control, a repository context, and the runtime references', () => {
     const always = SEEDS.filter((seed) => !seed.detect).map((seed) => seed.target).sort();
     return JSON.stringify(always) ===
-      JSON.stringify(['AGENTS.md', 'contexts/repository.md', 'rules/version-control.md']);
+      JSON.stringify(['AGENTS.md', 'contexts/repository.md', ...RUNTIME_REFERENCES, 'rules/version-control.md'].sort());
   });
+  assert('every runtime aep.mjs detects has a seeded reference', () =>
+    RUNTIME_REFERENCES.every((target) => SEEDS.some((seed) => seed.target === target)));
 
   // --- the merge-time half of a tracker reference ---------------------------
   //
@@ -4397,7 +4406,8 @@ section('install adapters', () => {
 
   const withOpencode = seeded({ 'opencode.json': '{}' });
   assert('opencode.json seeds the OpenCode reference', () => withOpencode('opencode.md'));
-  assert('opencode.json does not seed the T3 Code reference', () => !withOpencode('t3code.md'));
+  assert('opencode.json seeds both runtime references, which every repository gets', () =>
+    withOpencode('t3code.md') && withOpencode('claude-code.md'));
 
   const withT3 = seeded({ 't3.json': '{}' });
   assert('t3.json seeds the T3 Code reference', () => withT3('t3code.md'));
@@ -4409,7 +4419,9 @@ section('install adapters', () => {
 
   const bare = seeded({});
   assert('a repository running neither gets neither reference', () =>
-    !bare('opencode.md') && !bare('t3code.md'));
+    !bare('opencode.md'));
+  assert('a repository with no runtime config still gets both runtime playbooks', () =>
+    bare('t3code.md') && bare('claude-code.md'));
 });
 
 // --- §31 the install fixture ------------------------------------------------
@@ -4460,6 +4472,7 @@ section('install fixture', () => {
     const wrongly = SEEDS
       .filter((seed) => seed.target.startsWith('references/'))
       .filter((seed) => seed.target !== 'references/git.md')
+      .filter((seed) => !RUNTIME_REFERENCES.includes(seed.target))
       .filter((seed) => fs.existsSync(path.join(aep, ...seed.target.split('/'))));
     if (wrongly.length > 0) {
       throw new Error(`installed into a bare repository: ${
@@ -7285,7 +7298,7 @@ section('the specification', () => {
     'report:', '`report`', 'part-of', '`aep`', '`date`']) {
     assert(`the live contract does not describe ${field}`, () => !live.includes(field));
   }
-  for (const field of ['use-when', 'paths', 'status', 'blocked-by']) {
+  for (const field of ['use-when', 'paths', 'status', 'blocked-by', 'builds-on']) {
     assert(`the frontmatter contract still states ${field}`, () =>
       headingBlock(specText, '8. Frontmatter contract').includes(`\`${field}\``));
   }
@@ -8402,7 +8415,7 @@ section('scope surfaces', () => {
   assert('aep start checks the marker only once it is in the surface', () => {
     const start = cli.slice(cli.indexOf('function start('), cli.indexOf('function dispatch('));
     const scope = start.indexOf('resolveScope(root)');
-    const enter = start.indexOf('enterSurface(where, effort, scope)');
+    const enter = start.indexOf('enterSurface(where, effort, branch, scope)');
     const check = start.indexOf('checkMarker(aepIn(surface, where))');
     if (scope < 0 || enter < 0 || check < 0) throw new Error('start no longer reads scope, enters, and checks');
     if (scope > enter) throw new Error('the scope read no longer precedes the surface it decides');
@@ -8445,9 +8458,152 @@ section('scope surfaces', () => {
     && /the default branch's tip/.test(seedRule)
     && /the current branch, which is what stacking means/.test(seedRule));
 
+  // The T3 Code reference is a seed a repository owns, so what it states has to
+  // be checkable against T3 Code by its reader: it names where it was read
+  // from and how to re-read each fact, rather than freezing one release's paths.
   const t3 = flat(readSrc('seed', 'references', 't3code.md'));
-  assert('the t3 Code reference requires the worktree path to be ignored', () =>
+  assert('the T3 Code reference places no thread worktree inside the project by default', () =>
+    !/\.t3-worktrees/.test(t3));
+  assert('the T3 Code reference requires a worktree path inside the project to be ignored', () =>
     /gitignored/.test(t3) && /ls-files/.test(t3));
+  assert('the T3 Code reference names the T3 Code source it was read from', () =>
+    /Read from T3 Code/.test(t3));
+  assert('the T3 Code reference says how to re-check what it states', () =>
+    /git worktree list --porcelain/.test(t3) && /scope\.mjs read/.test(t3));
+  assert('the T3 Code reference keeps delegate_task to read-only work', () =>
+    /delegate_task/.test(t3) && /read-only/.test(t3));
+  assert('the T3 Code reference covers a thread launched in the ticket surface', () =>
+    /existing_worktree/.test(t3) && /role: implementer/.test(t3));
+  assert('the T3 Code reference names the sandbox check for dispatch', () =>
+    /sandbox/.test(t3) && /additionalDirectories/.test(t3));
+
+  // 4.2: a surface the runtime supplied, on a branch the runtime named.
+  const parallelText = flat(readSrc('policies', 'execution', 'parallel.md'));
+  assert('the parallel policy runs an implementer only where aep dispatch put it', () =>
+    /\*\*An implementer runs only in a surface `aep dispatch` created\*\*/.test(parallelText)
+    && /It stops unless `scope\.mjs read` prints `role: implementer`/.test(parallelText));
+  assert('the parallel policy keeps a runtime\'s own delegation to read-only work', () =>
+    /\*\*A runtime's own delegation that shares your checkout or makes its own worktree carries read-only work:\*\*/.test(parallelText)
+    && /never dispatches, integrates, or delegates/.test(parallelText));
+  assert('the dispatch note sends a child only to the surface aep dispatch created', () =>
+    /the surface `aep dispatch` created for this task, by its absolute path, and nowhere else \(`\[\[policies\/execution\/parallel\]\]`\)/
+      .test(flat(readSrc('skills', 'implement', 'dispatch.md'))));
+  assert('the implementer stops where its surface reports another role', () =>
+    /\*\*Any other role means you were started somewhere else: write nothing, and return `stopped`\*\*/
+      .test(flat(readSrc('agents', 'implementer.md'))));
+  assert('the protocol\'s write zones name the runtime\'s worktree', () =>
+    /\| `\.aep\/worktrees\/<effort>\/…`, or the runtime's worktree you stand in \| effort and child surfaces \|/.test(readSrc('protocol.md')));
+  assert('the seeded rule declares runtime-setup, defaulting to auto', () =>
+    /^runtime-setup: auto$/m.test(readSrc('seed', 'rules', 'version-control.md')));
+  assert('aep.mjs names a runtime only in its data tables', () => {
+    const setupTable = /export const RUNTIME_SETUP = \[[\s\S]*?\n\];/.exec(cli);
+    const runtimeTable = /export const RUNTIMES = \[[\s\S]*?\n\];/.exec(cli);
+    if (!setupTable || !runtimeTable) throw new Error('RUNTIME_SETUP or RUNTIMES is gone');
+    const elsewhere = cli.replace(setupTable[0], '').replace(runtimeTable[0], '')
+      .replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    if (/t3\.json|T3 Code|runOnWorktreeCreate|T3CODE_|Claude Code|CLAUDECODE|CLAUDE_CODE_/.test(elsewhere)) {
+      throw new Error('a runtime is named outside the tables');
+    }
+    return true;
+  });
+  assert('the implement skill resumes from any runtime, and the agent makes the move', () =>
+    /It re-enters the same surface, from any runtime, and hands back another runtime's worktree to move into\./.test(flat(readSrc('skills', 'implement.md')))
+    && readSrc('skills', 'implement.md').includes('| `move: true` | move into `surface` yourself, the way `runtime.reference` says, and `start` again there, which takes the lease; never hand the move to the developer |'));
+  assert('the handoff skill says how work crosses to another runtime, with no command for the developer', () => {
+    const handoff = flat(readSrc('skills', 'handoff.md'));
+    return /\*\*Continuing in another runtime\?\*\* Commit or land the work first; nothing uncommitted crosses\./.test(handoff)
+      && /node \.aep\/scripts\/aep\.mjs yield/.test(handoff) && /aep release <effort>/.test(handoff)
+      && /\*\*The developer runs none of this\.\*\*/.test(handoff);
+  });
+  assert('the T3 Code reference says how to continue in another runtime', () =>
+    /### Continuing an effort/.test(readSrc('seed', 'references', 't3code.md'))
+    && /`existing_worktree` on that surface's path/.test(t3) && /`move: true`/.test(t3) && /\.aep\/scratch\/lease\.json/.test(t3));
+  assert('aep.mjs ships release, and names continue_in where a runtime holds the branch', () =>
+    /const COMMANDS = \{[^}]*\brelease\b[^}]*\}/.test(cli) && /continue_in:/.test(cli)
+    // Defined once, and thrown by both start and release.
+    && (cli.match(/heldElsewhere\(/g) ?? []).length >= 3);
+
+  // 4.4: the agent moves an effort between runtimes, guarded by a lease.
+  assert('aep.mjs ships yield, and a lease that goes stale after an hour', () =>
+    /const COMMANDS = \{[^}]*\byield: yieldSurface\b[^}]*\}/.test(cli) && /export const LEASE_STALE_MINUTES = 60;/.test(cli));
+  assert('the Claude adapter registers the session hooks for start, every turn, and the end', () => {
+    const hooks = JSON.parse(readSrc('adapters', 'claude', 'hooks', 'hooks.json')).hooks;
+    const runs = (event, arg) => (hooks[event] ?? []).some((group) => group.hooks.some((entry) =>
+      (entry.args ?? []).some((value) => value.endsWith('/hooks/session.mjs')) && (entry.args ?? []).includes(arg)));
+    return runs('SessionStart', 'start') && runs('Stop', 'stop') && runs('SessionEnd', 'end');
+  });
+  const runtimeSpec = flat(specText);
+  assert('specs.md §21.1 continues an effort in any runtime, and release refuses uncommitted work', () =>
+    /\*\*An effort continues in any runtime\.\*\*/.test(runtimeSpec)
+    && /it MUST refuse a surface with uncommitted changes/.test(runtimeSpec)
+    && /`close`, `release`, `yield`, and `check`/.test(runtimeSpec)
+    && runtimeSpec.includes("**A lease** in the surface's `.aep/scratch/lease.json` names the session working there")
+    && /`start` MUST return that worktree as the surface, with `move: true`/.test(runtimeSpec));
+  assert('specs.md §18.2 has a run in a runtime worktree commit on the runtime\'s branch', () =>
+    /\*\*Nor does it take a second branch:\*\* where that worktree stands on a named branch other than the default, the run MUST commit its effort on that branch/.test(runtimeSpec));
+  assert('specs.md §18.3 runs an implementer only in a surface the orchestrator created', () =>
+    /\*\*An implementer MUST run only in a ticket surface the orchestrator created\.\*\*/.test(runtimeSpec)
+    && /Such delegation MUST carry only read-only work/.test(runtimeSpec));
+  assert('specs.md §19.3 has the command line find an effort by content', () =>
+    /\*\*The command line finds an effort's branch the same way\.\*\*/.test(runtimeSpec)
+    && /a tie MUST stop the command, naming every branch/.test(runtimeSpec));
+  assert('specs.md §21.1 sets up a runtime worktree once, and names it a write zone', () =>
+    /\*\*A runtime that sets up its own worktrees is not set up twice\.\*\*/.test(runtimeSpec)
+    && /the worktree the runtime supplied when the run stands in one/.test(runtimeSpec));
+
+  assert('start, release, and close share one lease guard', () =>
+    (cli.match(/guardLease\(/g) ?? []).length >= 4);
+
+  // 4.5: each runtime has a playbook, and start points at the one it runs under.
+  const claudeCode = flat(readSrc('seed', 'references', 'claude-code.md'));
+  const playbook = (text) => ['Building tickets', 'Reviewing', 'Researching', 'Continuing an effort']
+    .every((heading) => text.includes(`### ${heading}`));
+  // 4.5.1: one T3 thread is one effort, so a ticket runs inside it.
+  assert('the T3 Code playbook builds tickets as sub-agents of the effort\'s thread and reviews through delegate_task', () =>
+    playbook(readSrc('seed', 'references', 't3code.md'))
+    && /\*\*One thread is one effort\*\*, and so one pull request\./.test(t3)
+    && /Start each ticket as a sub-agent of your provider, in the background/.test(t3)
+    && /\*\*Never `t3_thread_launch` a ticket\.\*\*/.test(t3)
+    && /`delegate_task` with `isolation: "shared"`/.test(t3) && /Set `target` to a second provider/.test(t3)
+    && /at commit `9e85538535c8`/.test(t3));
+  assert('specs.md §21.1 keeps one T3 thread per effort', () =>
+    /\*\*Under T3 Code, one thread is one effort\*\*, and so one pull request: a ticket MUST NOT be given a thread of its own/.test(runtimeSpec));
+  assert('the Claude Code playbook builds tickets as background implementers and continues with EnterWorktree', () =>
+    playbook(readSrc('seed', 'references', 'claude-code.md'))
+    && /`subagent_type: "aep:implementer"`/.test(claudeCode) && /`run_in_background: true`/.test(claudeCode)
+    && /Never pass `isolation: "worktree"`/.test(claudeCode)
+    && /the `EnterWorktree` tool with `path` set to the `surface` it returned/.test(claudeCode)
+    && /`CLAUDE_CODE_SESSION_ID`/.test(claudeCode));
+  assert('both runtime references are seeded with no detect, in the order RUNTIMES lists them', () => {
+    const runtimeSeeds = SEEDS.filter((seed) => /^references\/(t3code|claude-code)\.md$/.test(seed.target));
+    const order = [...cli.matchAll(/reference: '([a-z0-9-]+)'/g)].map((match) => match[1]);
+    return runtimeSeeds.length === 2 && runtimeSeeds.every((seed) => !seed.detect)
+      && order.join(' ') === 't3code claude-code';
+  });
+  assert('the implement skill runs children the way the runtime playbook says, and briefs name absolute paths', () =>
+    /run the way the playbook in `runtime\.reference` says/.test(flat(readSrc('skills', 'implement.md')))
+    && /by its absolute path, and nowhere else/.test(flat(readSrc('skills', 'implement', 'dispatch.md'))));
+  assert('specs.md §21.1 has start name the runtime and its playbook', () =>
+    /\*\*Each runtime has a playbook\.\*\*/.test(runtimeSpec)
+    && /`start` MUST report the detected runtime and its reference/.test(runtimeSpec));
+
+  // 4.3: an effort declares what it builds on, and the tracker sees the edge.
+  const trackerText = flat(readSrc('policies', 'tracker.md'));
+  assert('the tracker policy sets each builds-on edge as an issue dependency and names it in the pull request', () =>
+    /\*\*Each `builds-on:` edge is a tracker dependency:\*\*/.test(trackerText)
+    && /--add-blocked-by/.test(trackerText) && /`Builds on #<its issue>`/.test(trackerText)
+    && /the spec stays canonical/.test(trackerText));
+  assert('the specify skill writes builds-on for a request that needs another effort', () =>
+    /names it in `builds-on:`; `aep open` then stacks on it or waits for it/.test(flat(readSrc('skills', 'specify.md'))));
+  assert('the artifacts policy and the spec template carry builds-on, for efforts only', () =>
+    /\| `builds-on` \| efforts only \|/.test(readSrc('policies', 'artifacts.md'))
+    && /^builds-on: \[<effort>\]/m.test(readSrc('templates', 'spec.template.md')));
+  assert('validate.mjs refuses builds-on anywhere but a spec', () =>
+    /builds-on is legal only on an effort spec\.md/.test(readSrc('scripts', 'validate.mjs')));
+  assert('specs.md §19.2 has efforts declare what they build on, stacking or waiting', () =>
+    /\*\*Efforts declare what they build on, the same way\.\*\*/.test(runtimeSpec)
+    && /the new branch MUST start at that effort's branch/.test(runtimeSpec)
+    && /`open` MUST stop naming what it waits on/.test(runtimeSpec));
 
   const plan = flat(readSrc('skills', 'plan.md'));
   assert('the plan skill writes plan.md rather than extending the spec', () =>
@@ -8618,7 +8774,7 @@ section('command line', () => {
     const summary = /ℹ pass (\d+)[\s\S]*?ℹ fail (\d+)/.exec(run.stdout ?? '');
     assert('node --test tests/aep.test.mjs passes', () => {
       if (run.status !== 0) throw new Error((run.stdout ?? '').split(/\r?\n/).filter((l) => /^✖|Error/.test(l)).slice(0, 6).join(' | '));
-      return summary !== null && Number(summary[1]) >= 16 && summary[2] === '0';
+      return summary !== null && Number(summary[1]) >= 42 && summary[2] === '0';
     });
   }
 });

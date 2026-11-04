@@ -27,6 +27,8 @@ cheapest to fix here.
    **This run stamps nothing.**
 2. **Check for an existing effort, and an existing boundary.** A request that
    extends a specified effort belongs in that spec, not a new one. A request
+   that needs another effort's work names it in `builds-on:`; `aep open` then
+   stacks on it or waits for it. A request
    this repository already declined is not re-argued:
    `[[skills/specify/out-of-scope]]`.
 3. **Load what applies** — policies and `[[rules]]` first, then

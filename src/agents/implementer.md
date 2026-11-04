@@ -46,7 +46,9 @@ node .aep/scripts/scope.mjs read
 ```
 
 The surface you were dispatched into is a ticket's, under its effort, so the
-role it reports is `implementer`, and that is you. The two refusals below are
+role it reports is `implementer`, and that is you. **Any other role means you
+were started somewhere else: write nothing, and return `stopped`** with the
+role and the path it printed. The two refusals below are
 what the role may not do, so an agent that has lost everything else still
 derives them from where it is standing. `[[policies/execution]]` states them as
 the rule, and says what the other roles may do.

@@ -5,6 +5,10 @@ use-when: "committing, branching, or preparing work to land"
 tracker: none
 # Run in every new worktree before work starts, e.g. pnpm install --frozen-lockfile.
 setup: ""
+# In a worktree an agent runtime created: auto skips setup where the runtime
+# declares its own worktree setup; aep always runs it; runtime leaves it to the
+# runtime. Either way a lockfile change afterwards runs it.
+runtime-setup: auto
 # true where changes are stacked by a stacking tool (see below).
 stack: false
 ---

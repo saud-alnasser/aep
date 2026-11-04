@@ -153,6 +153,10 @@ function checkArtifact(root, file) {
   if (fields['blocked-by'] !== undefined && !isTicket) {
     fail(rel, 'blocked-by is legal only on a local ticket');
   }
+  if (fields['builds-on'] !== undefined) {
+    if (!isSpec) fail(rel, 'builds-on is legal only on an effort spec.md');
+    else if (!Array.isArray(fields['builds-on'])) fail(rel, 'builds-on must be a YAML array of efforts, by directory or number');
+  }
 
   // Links.
   for (const target of wikiLinks(artifact.body)) {

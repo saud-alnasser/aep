@@ -49,6 +49,14 @@ compaction keeps you here and loses the verbatim history; a handoff forks.
 ## Resume with
 ```
 
+3. **Continuing in another runtime?** Commit or land the work first; nothing
+   uncommitted crosses. Then `node .aep/scripts/aep.mjs yield`, so the next
+   session takes the surface at once. The next session's `aep start` hands it
+   the surface wherever it stands, and it moves there itself. Only where it must
+   take the branch in a worktree of its own does it run `aep release <effort>`
+   from the main checkout, which frees `_run` and carries this file to the main
+   checkout's `.aep/scratch/`. **The developer runs none of this.**
+
 ## Constraints
 
 - **`Resume with` is one copy-pasteable line** that opens the next session

@@ -98,6 +98,7 @@ else.** Situational fields:
 | `status` | efforts and local tickets **only** | spec: `draft` `accepted` `implemented`; ticket: `open` `resolved` `obsolete`. `implemented` is written by the run that closed the effort (`aep close`), never by hand ahead of it |
 | `lane` | efforts only | `quick` `standard` `full`; only ever raised |
 | `blocked-by` | tickets only | ticket identifiers this one waits on |
+| `builds-on` | efforts only | efforts this one needs, by directory or number |
 
 **`use-when` states a trigger, never a topic.** `"working with database schema
 or migrations"` is a trigger; `"documentation about the database"` is a topic,

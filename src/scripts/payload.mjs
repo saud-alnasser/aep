@@ -83,6 +83,34 @@ export const MOVES = [
  */
 export const NOTICES = [
   {
+    since: '4.5.0',
+    check:
+      'Every repository now gets .aep/references/t3code.md and .aep/references/claude-code.md, ' +
+      'each with a playbook that aep start points at through runtime.reference: how to build ' +
+      'tickets, review, research, and continue an effort with the tools of that runtime. This ' +
+      'upgrade wrote whichever of the two was missing. If you already had a t3code.md, it is ' +
+      'yours and was left as it was: compare it with the shipped seed and take the Playbook ' +
+      'section, which replaces the old Running a child and Continuing in another runtime ' +
+      'sections. If you do not use one of these runtimes, keep its reference anyway: the ' +
+      'runtime is the choice of each developer, and a teammate may open this repository in it.',
+  },
+  {
+    since: '4.2.0',
+    check:
+      'If this repository runs AEP through T3 Code, your .aep/references/t3code.md is stale ' +
+      'and an upgrade never edits a reference you own. Compare it with the shipped seed and ' +
+      'take what applies: T3 Code now places thread worktrees outside the project, under ' +
+      '~/.t3/worktrees/ by default, so the old .t3-worktrees/ ignore line is no longer needed ' +
+      'unless you moved that location inside the repository. aep open in a worktree the ' +
+      'runtime supplied now commits the effort on the branch the runtime made, and never ' +
+      'switches away from it. A new optional field, runtime-setup, in the frontmatter of ' +
+      'your .aep/rules/version-control.md says who sets up such a worktree: auto (the ' +
+      'default, read when the field is absent), aep, or runtime. Under T3 Code, set aep if ' +
+      'you never imported the runOnWorktreeCreate action from t3.json, and runtime if your ' +
+      'setup lives in T3 actions and not in t3.json. Repositories that do not use T3 Code ' +
+      'need do nothing.',
+  },
+  {
     since: '4.1.0',
     check:
       'policies/reporting now chooses one of three registers by who reads a text. Public ' +
@@ -337,6 +365,12 @@ const reference = (tool, paths, remote) => ({
   detect: remote ? { paths, remote } : { paths },
 });
 
+/** A reference with no `detect`, so it installs in every repository. */
+const everywhere = (tool) => ({
+  source: `seed/references/${tool}.md`,
+  target: `references/${tool}.md`,
+});
+
 /**
  * A tracker reference, and the merge-time job that has to arrive with it.
  *
@@ -512,5 +546,11 @@ export const SEEDS = [
   // written by AEP's own OpenCode adapter, so detecting on it would make this
   // installation the evidence that the repository uses OpenCode.
   reference('opencode', ['opencode.json', 'opencode.jsonc']),
-  reference('t3code', ['t3.json']),
+
+  // The runtimes `aep start` detects from the environment, in `RUNTIMES`. Seeded
+  // in every repository: the runtime is the developer's choice, not the
+  // repository's, so no file here can say which one will open it. Each carries
+  // the playbook `start` points at.
+  everywhere('t3code'),
+  everywhere('claude-code'),
 ];

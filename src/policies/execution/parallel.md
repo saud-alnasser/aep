@@ -34,6 +34,16 @@ State the plan first — which tickets, which role, which branches. Stated, not
 gated. A ticket the command reports `held` is not taken. The next wave branches
 from the new tip.
 
+## Where a child runs
+
+- **An implementer runs only in a surface `aep dispatch` created**, as a
+  sub-agent or a runtime thread. It stops unless `scope.mjs read` prints
+  `role: implementer`.
+- **A runtime's own delegation that shares your checkout or makes its own
+  worktree carries read-only work:** research or review. Its child computes
+  `orchestrator`: it edits no file, returns its findings, and never dispatches,
+  integrates, or delegates.
+
 ## What a child gets
 
 A **brief** (`[[skills/implement/dispatch]]`): objective, inputs as paths, the

@@ -1,5 +1,5 @@
 ---
-version: 4.1.0
+version: 4.5.1
 use-when: "at the start of every session, before doing anything else in a repository that has a .aep/ directory"
 ---
 
@@ -38,9 +38,8 @@ tightens what it sits under.
 └── position/  scratch/  worktrees/   per working tree, gitignored, script-managed
 ```
 
-Worktrees and the position marker are mechanisms the scripts manage. New
-artifacts copy their shape from `templates/`. Whose each path is, and what
-it must contain: `[[policies/artifacts]]`.
+Worktrees and the position marker are script-managed. New artifacts copy their
+shape from `templates/`. Each path's owner and contents: `[[policies/artifacts]]`.
 
 ## Discovery
 
@@ -114,7 +113,7 @@ Anything else is a stop: say what you wanted to write and why.
 | Zone | Holds |
 | --- | --- |
 | the main checkout | source, config, tests, docs, `.aep/` artifacts |
-| `.aep/worktrees/<effort>/…` | effort and child surfaces |
+| `.aep/worktrees/<effort>/…`, or the runtime's worktree you stand in | effort and child surfaces |
 | `.aep/scratch/` | handoffs, notes, drafts — one per surface, gone with it |
 | where a project tool writes, run the project's way | `node_modules/`, build output, its cache |
 | the OS temp dir, through the language's temp API | never a typed path; removed before the run ends |
