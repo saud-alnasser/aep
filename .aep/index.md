@@ -22,6 +22,7 @@ Start at [[protocol]].
 | Artifact | Load when | Paths | Owner |
 | --- | --- | --- | --- |
 | [[rules/authoring]] | changing anything under src/ — the protocol's own shipped surfaces | src/** | — |
+| [[rules/review]] | reviewing a diff in this repository | — | — |
 | [[rules/version-control]] | committing, branching, or preparing work to land | — | — |
 
 ## Contexts
@@ -84,6 +85,7 @@ Start at [[protocol]].
 | [[templates/prototype.template]] | recording what a prototype answered, before deleting the code | — |
 | [[templates/reference.template]] | recording how a tool is actually operated in this repository | — |
 | [[templates/research.template]] | recording what an investigation established | — |
+| [[templates/review.template]] | writing or changing this repository's rules/review.md, what a reviewer should look for here and what it should skip | — |
 | [[templates/rule.template]] | adding a rule this repository discovered about how work must be done here | — |
 | [[templates/skill.template]] | authoring a skill for the protocol, or a note beside a shipped one | — |
 | [[templates/spec.template]] | writing or extending an effort's spec.md | — |
@@ -229,7 +231,7 @@ Every task of every effort. The tracker carries the effort, never its tasks.
 | [[efforts/66-review-and-bodies/tickets/03-opened-citation]] feat(review): every finding cites a line the reviewer opened | 66-review-and-bodies | resolved | 02 |
 | [[efforts/66-review-and-bodies/tickets/04-clean-review]] feat(review): a clean review says Nothing to fix | 66-review-and-bodies | resolved | 03 |
 | [[efforts/66-review-and-bodies/tickets/05-later-rounds]] feat(review): later rounds read only what changed | 66-review-and-bodies | resolved | 04 |
-| [[efforts/66-review-and-bodies/tickets/06-review-rule]] feat(review): load an optional rules/review.md | 66-review-and-bodies | open | 05 |
+| [[efforts/66-review-and-bodies/tickets/06-review-rule]] feat(review): load an optional rules/review.md | 66-review-and-bodies | resolved | 05 |
 | [[efforts/66-review-and-bodies/tickets/07-intent-from-bodies]] feat(review): read pull request and issue bodies as intent | 66-review-and-bodies | open | 06 |
 | [[efforts/66-review-and-bodies/tickets/08-body-templates]] feat(tracker): issue and pull request templates, human part on top | 66-review-and-bodies | open | 07 |
 | [[efforts/66-review-and-bodies/tickets/09-how-to-revert]] feat(tracker): the risk section says how to revert | 66-review-and-bodies | open | 08 |

@@ -1,5 +1,5 @@
 ---
-status: open
+status: resolved
 blocked-by: [05]
 ---
 
@@ -11,8 +11,10 @@ blocked-by: [05]
 
 ## Acceptance Criteria
 
-- [ ] Criterion 6: templates/review.template.md exists, the review skill loads rules/review.md, and .aep/rules/review.md exists here with the three points; asserted for the template and the skill.
-- [ ] Criterion 12: `node src/scripts/release.mjs 4.11.0` runs, `CHANGELOG.md` has a 4.11.0 entry, `.aep/` is reinstalled, and `node src/scripts/verify.mjs` passes.
+- [x] Criterion 6: templates/review.template.md exists, the review skill loads rules/review.md, and .aep/rules/review.md exists here with the three points; asserted for the template and the skill.
+      Verified: templates/review.template.md and .aep/rules/review.md exist; the rule names src/ against specs.md, .aep/ as installer output, and the generated files to skip. The section fails by name with the load removed from the skill.
+- [x] Criterion 12: `node src/scripts/release.mjs 4.11.0` runs, `CHANGELOG.md` has a 4.11.0 entry, `.aep/` is reinstalled, and `node src/scripts/verify.mjs` passes.
+      Verified: "released 4.11.0"; verify.mjs printed "2478 passed, 0 failed"; aep check clean, hot path 4192/4200.
 
 ## Relevant areas
 

@@ -1,5 +1,5 @@
 ---
-version: 4.10.0
+version: 4.11.0
 use-when: "at the start of every session, before doing anything else in a repository that has a .aep/ directory"
 ---
 

@@ -39,7 +39,8 @@ in the commit messages; a path the human passed. An effort-level review
 
 ## 3 — Find what this repository requires
 
-`[[policies]]` and `[[rules]]` by `use-when` and `paths` for the files in the
+`.aep/rules/review.md` first, where it exists, then `[[policies]]` and `[[rules]]` by
+`use-when` and `paths` for the files in the
 diff, `[[contexts]]` for the areas touched, then `CONTRIBUTING.md` and other
 repository docs. **Skip what a linter, formatter, or type-checker enforces.** A
 design problem nothing here covers is judged with `[[skills/review/smells]]`,

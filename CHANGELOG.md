@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.11.0
+
+A repository can tell its reviewers what failure looks like there.
+
+### Added
+
+- **An optional `.aep/rules/review.md`.** `/review` loads it first, where it
+  exists. It names what failure looks like in each area, and the paths a
+  reviewer skips, such as generated files. `templates/review.template.md`
+  gives the shape, and asks for under 30 lines, since every review reads it.
+
+### Upgrading
+
+Nothing to do. Write `.aep/rules/review.md` from the template if your
+reviewers spend time on generated files, or miss what failure means in an area.
+
 ## 4.10.0
 
 A second review round costs a fraction of the first.

@@ -8836,6 +8836,15 @@ section('review and bodies', () => {
     && /--review "2 Important, 2 fixed" --at <reviewed>/.test(readSrc('skills', 'implement.md')));
   assert('specs.md §21 has later rounds read only what changed', () =>
     /round 2 and later read only the diff from that commit plus the findings still open \(4\.10\)/.test(specText));
+  // 4.11: an optional rules/review.md, loaded first, with a template for its shape.
+  const reviewTemplate = flat(readSrc('templates', 'review.template.md'));
+  assert('the review skill loads rules/review.md first, and a template gives its shape', () =>
+    /`\.aep\/rules\/review\.md` first, where it exists, then `\[\[policies\]\]` and `\[\[rules\]\]`/.test(review)
+    && /Copy to `\.aep\/rules\/review\.md`/.test(reviewTemplate)
+    && /## What failure looks like here/.test(reviewTemplate) && /## Skip/.test(reviewTemplate)
+    && /\*\*Keep it under 30 lines\.\*\*/.test(reviewTemplate));
+  assert('specs.md §21 lets a repository keep a rules/review.md', () =>
+    /A repository MAY keep a `rules\/review\.md`, and `review` loads it first/.test(specText));
   // @@next
 });
 

@@ -119,6 +119,7 @@ export const PROTOCOL_FILES = [
   'templates/prototype.template.md',
   'templates/reference.template.md',
   'templates/research.template.md',
+  'templates/review.template.md',
   'templates/rule.template.md',
   'templates/skill.template.md',
   'templates/spec.template.md',
