@@ -8845,6 +8845,15 @@ section('review and bodies', () => {
     && /\*\*Keep it under 30 lines\.\*\*/.test(reviewTemplate));
   assert('specs.md §21 lets a repository keep a rules/review.md', () =>
     /A repository MAY keep a `rules\/review\.md`, and `review` loads it first/.test(specText));
+  // 4.12: with no spec, the pull request and linked issue bodies are the intent; never threads.
+  assert('the review skill reads the pull request and issue bodies after spec.md and before asking, never threads', () => {
+    const step = flat(/^## 2 [\s\S]*?(?=^## )/m.exec(readSrc('skills', 'review.md'))[0]);
+    const order = ["the effort's `spec.md`", 'the pull request and linked issue bodies, never threads', 'If none answers, ask']
+      .map((text) => step.indexOf(text));
+    return order.every((at) => at >= 0) && order[0] < order[1] && order[1] < order[2];
+  });
+  assert('specs.md §21 has review read the bodies, never threads', () =>
+    /`review` reads the pull request body and its linked issue's body as the stated intent, before it asks \(4\.12\)\.\*\* It MUST NOT read comment or review threads/.test(specText));
   // @@next
 });
 

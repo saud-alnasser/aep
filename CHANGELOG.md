@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.12.0
+
+A review with no spec reads what the pull request says it does.
+
+### Changed
+
+- **The pull request and linked issue bodies are the intent when there is no
+  spec.** `/review` reads them after `spec.md` and the commit messages, and
+  before asking. It reads the bodies only, never comment or review threads,
+  which cost more than they add.
+
+### Upgrading
+
+Nothing to do.
+
 ## 4.11.0
 
 A repository can tell its reviewers what failure looks like there.

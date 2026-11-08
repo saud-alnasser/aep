@@ -12,6 +12,7 @@ use-when: "resuming this effort, or asking where it stands"
 [x] 04 clean-review 2/2
 [x] 05 later-rounds 2/2
 [x] 06 review-rule 2/2
+[x] 07 intent-from-bodies 2/2
 
 ## Rounds
 

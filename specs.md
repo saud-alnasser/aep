@@ -1,6 +1,6 @@
 # Agentic Engineering Protocol (AEP) — Specification
 
-**Version:** 4.11.0
+**Version:** 4.12.0
 **Status:** Normative. This document is the canonical specification of the protocol this repository builds.
 **Supersedes:** AEP 1.x in full. The 1.x architecture — `.claude/` as the canonical location, policies, decisions, the stage→dependency table, the boot-tier budget — is **retired, not converted**. Where a 1.x concept survives, it survives because it earned its place again under this model, not because it existed. A 1.x repository's own knowledge does cross, by a defined carry-across (§30.2); its copy of the framework does not.
 
@@ -807,6 +807,8 @@ Position is gitignored, so it is **per working tree rather than per clone**: two
 **A review round records the commit it judged, and round 2 and later read only the diff from that commit plus the findings still open (4.10).** `aep record --review` appends `(reviewed <commit>)` to the round's line, from `--at` or else the commit the surface stands on. A later round MUST NOT raise again a finding already fixed or accepted. A round whose result names no Important finding is clear, since a Nit or a Pre-existing finding starts no round. *Why: a second round that rereads the whole branch pays for the first round again and finds code the first round already judged; the fixes are what is new.*
 
 **A repository MAY keep a `rules/review.md`, and `review` loads it first, where it exists, before the other rules (4.11).** A shipped template gives its shape: what failure looks like in each area, and the paths a reviewer skips. It is the repository's own and is never seeded. *Why: a reviewer that does not know what failure looks like in a repository reviews for generic virtues, and one that does not know which files are generated spends its budget on them.*
+
+**Where no `spec.md` answers, `review` reads the pull request body and its linked issue's body as the stated intent, before it asks (4.12).** It MUST NOT read comment or review threads for it. *Why: a pull request from outside AEP usually states its intent in its body, and asking the human for what the body already says costs a turn; threads are long, mostly settled, and would cost more than the answer is worth.*
 
 **`converge`** is the effort's termination condition and runs when no unresolved ticket remains. It asks whether the spec is satisfied, and it **appends tickets rather than editing the spec or the plan**: work that was not built becomes further tickets, and an approach that cannot satisfy a requirement stops on the return-to-plan invariant (§22). It runs at most as many rounds as the lane allows, and never more than twice; a second round finding a gap the first round created is a signal about the plan, not an invitation to a third.
 

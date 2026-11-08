@@ -29,8 +29,9 @@ isolation. A later round's subject is `[[skills/review/findings]]`'s.
 
 ## 2 — Find what was asked for
 
-The first that answers: the effort's `spec.md` for the claim; task references
-in the commit messages; a path the human passed. An effort-level review
+The first that answers: the effort's `spec.md`; task references in the commit
+messages; the pull request and linked issue bodies, never threads; a path the
+human passed. An effort-level review
 (`[[skills/implement]]`'s close) is the ordinary case, and resolves to
 `spec.md`. If none answers, ask; with genuinely no spec, Correctness reports
 **no spec available** for the requirements half.
