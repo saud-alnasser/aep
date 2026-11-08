@@ -20,6 +20,7 @@ use-when: "resuming this effort, or asking where it stands"
 ## Rounds
 
 converge 1: no gap
+review 1: Correctness 5 Important, 1 Nit; Standards 1 Important, 3 Nit; 6 Important fixed, 3 Nits fixed (reviewed 549f0316bf6a)
 
 ## Recorded
 
