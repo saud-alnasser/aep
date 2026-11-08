@@ -35,12 +35,13 @@ Two lists, and the exact fields the script reads:
 
 ```sh
 gh issue list --state all --limit 200 --json number,state,labels
-gh pr list --state all --limit 200 --json number,state,labels,closingIssuesReferences
+gh pr list --state all --limit 200 --json number,state,labels,closingIssuesReferences,body
 ```
 
-`closingIssuesReferences` is what ties a pull request to its effort, and it is
-populated by the closing keyword. A pull request that carries none is reported
-against no effort, which is the same omission the keyword exists to remove.
+**The `effort:` line in the body's `AEP` block** is what ties a pull request to
+its effort. `closingIssuesReferences` is the fallback, for a pull request with
+no block: it is populated by the closing keyword. A pull request with neither
+is reported against no effort.
 
 They are combined into one object with an `issues` key and a `changeRequests`
 key, each holding that command's output unmodified. Nothing beyond `gh` is
@@ -50,7 +51,7 @@ needed to do it:
 { printf '{"issues":'
   gh issue list --state all --limit 200 --json number,state,labels
   printf ',"changeRequests":'
-  gh pr list --state all --limit 200 --json number,state,labels,closingIssuesReferences
+  gh pr list --state all --limit 200 --json number,state,labels,closingIssuesReferences,body
   printf '}'
 } | node .aep/scripts/reconcile.mjs --observed -
 ```
@@ -221,8 +222,9 @@ issue nobody merged.
 
 ## Pull requests
 
-Opening or merging a pull request is the **human's**, never an agent's
-(`[[rules/version-control]]`). Prepare the body; do not submit it.
+**The runner opens an effort's pull request as a draft, and marks it ready** at
+the close (`[[rules/version-control]]`). **Merging is the human's.** The body
+takes the shape `[[templates/pull-request.template]]` gives.
 
 ## Failure handling
 

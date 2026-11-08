@@ -76,7 +76,9 @@ looked at again.
 
 ## Every finding must carry
 
-- the file and line
+- its tag: **Important**, **Nit**, or **Pre-existing**, as
+  `[[skills/review/findings]]` defines them
+- the file and line, as `path:line`, **opened before you report it**
 - what is wrong
 - **the concrete failing case** — inputs or state, and the wrong result
 
@@ -85,6 +87,8 @@ not round a suspicion up to a finding; a review that cries wolf gets skimmed.
 
 ## Return
 
-Findings, most severe first. **Say explicitly what you did not review** and where
+Findings, Important first, then Nit, then Pre-existing, with at most 3 Nits.
+A Nit never starts a round. Say how many findings you dropped for want of a
+citation. **Say explicitly what you did not review** and where
 you ran out of budget — a gap read as coverage is worse than no review. Write
 it in the controlled register (`[[policies/reporting]]`).

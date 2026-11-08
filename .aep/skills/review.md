@@ -9,12 +9,11 @@ Two axes, judged **independently**, and no third (architecture is Standards):
 - **Correctness**: does this implement what was asked, and does it work?
 - **Standards**: does it follow this repository's rules and conventions?
 
-Reported together, the stronger axis hides the weaker one.
+Merged, the stronger axis hides the weaker.
 
-**Posture.** Skeptical: assume defects exist and you have not found them yet.
-The question is whether it satisfies the specified change, which is as much
-about the spec as the diff. **What this gives up** is charity toward the
-author, and speed.
+**Posture.** Skeptical: assume defects exist and you have not found them yet,
+and judge the diff against the spec. **What this gives up** is charity toward
+the author, and speed.
 
 ## 1 — Pin the fixed point
 
@@ -24,14 +23,15 @@ the run to its efforts. Take the ref the caller supplied (a SHA, branch, tag, or
 
 The subject is the committed range **plus** staged, unstaged, and untracked
 changes: review their union. Diff against the **merge-base**, not the raw ref.
-`[[references]]` has the invocations. Before dispatching anything, prove the ref
-resolves and the subject is **non-empty**. The claim and the isolation go in
-`Position`, beside the merge-base and the non-empty subject.
+`[[references]]` has the invocations. Before dispatching, prove the ref resolves
+and the subject is **non-empty**; both go in `Position` with the claim and the
+isolation. A later round's subject is `[[skills/review/findings]]`'s.
 
 ## 2 — Find what was asked for
 
-The first that answers: the effort's `spec.md` for the claim; task references
-in the commit messages; a path the human passed. An effort-level review
+The first that answers: the effort's `spec.md`; task references in the commit
+messages; the pull request and linked issue bodies, never threads; a path the
+human passed. An effort-level review
 (`[[skills/implement]]`'s close) is the ordinary case, and resolves to
 `spec.md`. If none answers, ask; with genuinely no spec, Correctness reports
 **no spec available** for the requirements half.
@@ -40,7 +40,8 @@ in the commit messages; a path the human passed. An effort-level review
 
 ## 3 — Find what this repository requires
 
-`[[policies]]` and `[[rules]]` by `use-when` and `paths` for the files in the
+`.aep/rules/review.md` first, where it exists, then `[[policies]]` and `[[rules]]` by
+`use-when` and `paths` for the files in the
 diff, `[[contexts]]` for the areas touched, then `CONTRIBUTING.md` and other
 repository docs. **Skip what a linter, formatter, or type-checker enforces.** A
 design problem nothing here covers is judged with `[[skills/review/smells]]`,
@@ -60,8 +61,10 @@ conclusion between them. Cap each report.
 
 ## 5 — Report
 
-`## Correctness` and `## Standards`, never merged and never reranked across.
-Close with one line per axis: the count, and the worst finding within it.
+`## Correctness` and `## Standards`, never merged and never reranked across,
+each finding reported as `[[skills/review/findings]]` says: only Important
+blocks. Lead each axis with its count per tag. One with none says "Nothing to
+fix" and nothing more.
 
 ## 6 — Every finding gets an outcome
 
@@ -79,5 +82,5 @@ There is no reviews directory: what is durable graduates to the code, a
 
 ## Done when
 
-Every axis the lane calls for has run, the findings are reported without being
-merged, and each is fixed, ticketed, or awaiting the human's acceptance.
+Every axis the lane calls for has run and is reported unmerged, and each
+Important finding is fixed, ticketed, or awaiting the human's acceptance.

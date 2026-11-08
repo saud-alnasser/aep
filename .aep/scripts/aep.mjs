@@ -4,7 +4,7 @@
 // detach before remove, every surface under the main checkout's worktrees.
 //
 //   node .aep/scripts/aep.mjs status [--repos <dir>] [--json]
-//   node .aep/scripts/aep.mjs open <slug> --lane <quick|standard|full> [--number <n>]
+//   node .aep/scripts/aep.mjs open <slug> --lane <quick|standard|full> [--number <n>] [--issue]
 //   node .aep/scripts/aep.mjs start [<effort>|<effort>/<ticket>]
 //   node .aep/scripts/aep.mjs dispatch <effort> <ticket>...
 //   node .aep/scripts/aep.mjs land <effort> [<ticket>] --message <text> [--session <id>]
@@ -12,7 +12,7 @@
 //   node .aep/scripts/aep.mjs release <effort>
 //   node .aep/scripts/aep.mjs yield [<effort>] [--session <id>]
 //   node .aep/scripts/aep.mjs raise <effort> <lane> --reason <text>
-//   node .aep/scripts/aep.mjs record <effort> --converge|--review|--note|--needs-you <line>
+//   node .aep/scripts/aep.mjs record <effort> --converge|--review|--note|--needs-you <line> [--at <commit>]
 //   node .aep/scripts/aep.mjs check [--root <tree>]
 //
 // Every command but status and check prints one JSON object carrying a
@@ -462,9 +462,19 @@ export function logSection(text, heading) {
 }
 
 /**
+ * A review round is clear when nothing it found blocks. The fix to an Important
+ * finding is reviewed again, within the lane's cap; a Nit or a Pre-existing
+ * finding starts no round. Each axis may report its own count, so one axis's
+ * "Nothing to fix" never clears a line that names an Important finding.
+ */
+const REVIEW_CLEAR = /\b(?:0|no) (?:important )?findings?\b|\b(?:0|no) important\b|\bnothing to fix\b/i;
+const REVIEW_BLOCKED = /\b[1-9]\d* important\b/i;
+
+/**
  * The rounds the log records. A line reads `converge 1: no gap`,
  * `converge 1: gap, tickets 05 06`, `review 1: 3 findings, 3 fixed`,
- * `review 2: no findings`.
+ * `review 2: no findings`. A review line ends `(reviewed <commit>)`, the commit
+ * that round judged, so the next round reads only what changed since.
  */
 export function readRounds(text) {
   const rounds = { converge: [], review: [] };
@@ -472,13 +482,13 @@ export function readRounds(text) {
     const match = /^(converge|review)\s+(\d+):\s*(.*)$/i.exec(line.replace(/^[-*]\s*/, ''));
     if (!match) continue;
     const kind = match[1].toLowerCase();
-    const result = match[3];
+    const reviewed = /\s*\(reviewed ([0-9a-f]{7,40})\)\s*$/i.exec(match[3]);
+    const result = reviewed ? match[3].slice(0, reviewed.index) : match[3];
     rounds[kind].push({
       round: Number(match[2]),
       result,
-      // A review round is clear only when it found nothing: fixes made in a
-      // round are reviewed again, within the lane's cap.
-      clear: kind === 'converge' ? /\bno gap\b/i.test(result) : /\b(?:0|no) findings\b/i.test(result),
+      reviewed: reviewed ? reviewed[1] : null,
+      clear: kind === 'converge' ? /\bno gap\b/i.test(result) : REVIEW_CLEAR.test(result) && !REVIEW_BLOCKED.test(result),
     });
   }
   return rounds;
@@ -595,7 +605,7 @@ function branchFrom(index, effort) {
  * What each effort a spec's `builds-on:` names has become: `merged` where its
  * `spec.md` is on the default branch, `open` where a branch holds it, and a
  * stop otherwise. A name is the effort's directory or its number, which under
- * a tracker is the issue number. Merged wins over open, since a branch named
+ * a tracker is its issue's number, or its pull request's where it has no issue. Merged wins over open, since a branch named
  * for an effort outlives its merge.
  */
 function dependencies(where, index, names) {
@@ -742,6 +752,7 @@ function open(root, args) {
     && git(where.repo, ['ls-remote', '--heads', 'origin', `${args.flags.number ?? ''}-${slug}`], { allowFail: true })) {
     throw new Stop(`a remote branch for ${slug} already exists. A claim held elsewhere is not taken`);
   }
+  if (args.flags.issue && !args.flags.number) throw new Stop('--issue names the issue that carries --number. Pass --number <issue> with it');
   const number = args.flags.number ? Number(args.flags.number) : nextNumber(where, index);
   if (!Number.isInteger(number) || number < 1) throw new Stop('--number must be a positive integer');
   const effort = `${number}-${slug}`;
@@ -847,12 +858,18 @@ function open(root, args) {
   if (draft === candidates[1]) writeIndex(root);
 
   const setup = warm(where, settings, surface, { runtime });
-  const tracker = settings.tracker === 'none' ? [] : [
-    `create the issue from ${where.aepRel}/efforts/${effort}/spec.md, and rename the effort to the issue number if it differs`,
-    `push ${branch} and open a draft pull request carrying the run log`,
+  // An issue only where one is wanted: --issue says the number is an issue's.
+  // Without it the effort is numbered for its pull request, and has no issue.
+  const template = (name) => `${where.aepRel}/templates/${name}.template.md`;
+  const tracker = settings.tracker === 'none' ? [] : args.flags.issue ? [
+    `push ${branch} and open a draft pull request from ${template('pull-request')} that closes #${number}`,
+    `then fill the AEP block of issue #${number} from ${template('issue')}, in its one edit`,
+  ] : [
+    `push ${branch} and open a draft pull request from ${template('pull-request')}; this effort has no issue`,
+    `rename the effort to the pull request's number if it is not ${number}`,
   ];
   if (settings.tracker !== 'none' && needs.length > 0) {
-    tracker.push(`set each builds-on edge as a dependency of the issue, and name it in the pull request body: ${needs.map((need) => need.effort).join(', ')}`);
+    tracker.push(`name each builds-on edge in the pull request body${args.flags.issue ? ', and set it as a dependency of the issue where that effort has one' : ''}: ${needs.map((need) => need.effort).join(', ')}`);
   }
   return {
     effort, lane, number, base, branch, adopted, surface, opened: 'created', setup, tracker,
@@ -1215,8 +1232,8 @@ function close(root, args) {
     }
   }
   outcome.tracker = settings.tracker === 'none' ? [] : stopReason
-    ? ['mirror the run log into the pull request; leave it a draft']
-    : ['mirror the run log into the pull request', 'mark the pull request ready for review'];
+    ? ['update the AEP block of the pull request; leave it a draft']
+    : [`rewrite the pull request body from ${where.aepRel}/templates/pull-request.template.md, its AEP block included`, 'mark the pull request ready for review'];
   if (runtime) {
     outcome.summary = `${stopReason ? 'stopped' : 'closed'} ${effort}: the runtime's surface at ${here} is left as the runtime made it`;
   } else {
@@ -1335,7 +1352,7 @@ function record(root, args) {
   const [effortArg] = args.positional;
   const kinds = Object.keys(RECORDS).filter((kind) => args.flags[kind] !== undefined);
   if (!effortArg || kinds.length !== 1) {
-    throw new Stop('usage: aep record <effort> --converge|--review|--note|--needs-you "<line>"');
+    throw new Stop('usage: aep record <effort> --converge|--review|--note|--needs-you "<line>" [--at <commit>]');
   }
   const [kind] = kinds;
   const text = String(args.flags[kind]).trim();
@@ -1355,6 +1372,13 @@ function record(root, args) {
       throw new Stop(`${effort} is ${spec.lane}: at most ${cap} ${kind} round(s), and ${done} ran. Close it, with --stop where anything is open`);
     }
     line = `${kind} ${done + 1}: ${text}`;
+    if (kind === 'review') {
+      // The commit this round judged, so the next round diffs from it.
+      const at = typeof args.flags.at === 'string' ? args.flags.at : 'HEAD';
+      const sha = git(here, ['rev-parse', '--verify', '--quiet', `${at}^{commit}`], { allowFail: true });
+      if (!sha) throw new Stop(`--at ${at} does not name a commit`);
+      line += ` (reviewed ${sha.slice(0, 12)})`;
+    }
   } else {
     line = `- ${text}`;
   }
@@ -1537,7 +1561,7 @@ export function parseArgs(argv) {
       continue;
     }
     const name = arg.slice(2);
-    const boolean = ['json'].includes(name);
+    const boolean = ['json', 'issue'].includes(name);
     const value = boolean ? true : argv[i + 1];
     if (!boolean) i += 1;
     if (name === 'friction') flags.friction = [...(flags.friction ?? []), value];

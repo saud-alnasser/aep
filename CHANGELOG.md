@@ -1,5 +1,188 @@
 # Changelog
 
+## 4.15.0
+
+A pull request no longer needs an issue.
+
+### Changed
+
+- **An effort always has a pull request, and an issue only where one is
+  wanted**: when the human names one, or when it is a roadmap item.
+  `templates/issue.template.md` says when. Without an issue, the effort is
+  numbered for its pull request.
+- **`aep open` takes `--issue`.** Pass it with `--number`, where an issue
+  carries the number; alone it stops. Without it, the tracker steps open only
+  the draft pull request. With it, the pull request opens first, so the issue's
+  one edit can name it.
+- **A review round that names an Important finding on any axis is never
+  clear**, even where another axis says "Nothing to fix".
+- **`reconcile.mjs` ties a pull request to its effort by the `effort:` line in
+  its `AEP` block.** The closing keyword is the fallback, for a pull request
+  with no block. A pull request with neither is reported against no effort. A
+  pull request linked by its block brings only the issue it closes, so a GitLab
+  issue that shares the merge request's number is never taken for the effort's.
+- **The forge references create an issue from the issue template**, and only
+  where there is one, never from `spec.md`.
+
+### Upgrading
+
+`.aep/references/github.md` is yours, so the upgrade leaves it as it is. Add
+`,body` to the `--json` fields of its `gh pr list` commands, so
+`reconcile.mjs` can read the `AEP` block. If it still creates the issue from
+`spec.md`, change that to a file filled from `.aep/templates/issue.template.md`.
+
+## 4.14.0
+
+A pull request says how to undo it.
+
+### Changed
+
+- **The risk section has a revert line.** It says how to undo the change, such
+  as "revert the merge commit", or that it cannot be undone and why. The line
+  is never left out.
+
+### Upgrading
+
+Nothing to do.
+
+## 4.13.0
+
+Pull request and issue bodies read plainly for a person, with agent detail in
+one folded block at the bottom.
+
+### Added
+
+- **`templates/pull-request.template.md` and `templates/issue.template.md`.**
+  They are the only place either body shape is stated. Each body has a human
+  part on top, in plain words, and one collapsed `AEP` block at the bottom,
+  holding `key: value` lines such as `effort:` and `log:`.
+
+### Changed
+
+- **A run writes the human part only when the effort opens and at the close.**
+  Between them it edits only the `AEP` block.
+- **Criteria are ticked in the pull request only.** The issue lists them as
+  plain bullets.
+- **The issue is written once.** It is no longer a copy of `spec.md`, and it is
+  never rewritten as the spec changes.
+- **The pull request links `log.md` and never copies it**, so a land or a
+  record no longer rewrites the whole body.
+
+### Upgrading
+
+Your `.aep/rules/version-control.md` is yours, so an upgrade does not change
+it. If its "Pull request descriptions" section lists sections of its own, point
+it at the two templates instead, or keep only what your repository adds to
+them.
+
+## 4.12.0
+
+A review with no spec reads what the pull request says it does.
+
+### Changed
+
+- **The pull request and linked issue bodies are the intent when there is no
+  spec.** `/review` reads them after `spec.md` and the commit messages, and
+  before asking. It reads the bodies only, never comment or review threads,
+  which cost more than they add.
+
+### Upgrading
+
+Nothing to do.
+
+## 4.11.0
+
+A repository can tell its reviewers what failure looks like there.
+
+### Added
+
+- **An optional `.aep/rules/review.md`.** `/review` loads it first, where it
+  exists. It names what failure looks like in each area, and the paths a
+  reviewer skips, such as generated files. `templates/review.template.md`
+  gives the shape, and asks for under 30 lines, since every review reads it.
+
+### Upgrading
+
+Nothing to do. Write `.aep/rules/review.md` from the template if your
+reviewers spend time on generated files, or miss what failure means in an area.
+
+## 4.10.0
+
+A second review round costs a fraction of the first.
+
+### Changed
+
+- **A review round records the commit it judged.** `aep record --review` ends
+  the line with `(reviewed <commit>)`, from `--at <commit>` or else the commit
+  the surface stands on.
+- **Round 2 and later read only what changed**: the diff from that commit plus
+  the findings still open. They never raise again a finding already fixed or
+  accepted.
+- **A round with no Important finding is clear.** "0 Important" and "Nothing
+  to fix" end review, the same as "no findings".
+
+### Upgrading
+
+Nothing to do. A round recorded before 4.10 has no commit, and the next round
+reviews the whole effort branch as before.
+
+## 4.9.0
+
+A clean review says so plainly.
+
+### Changed
+
+- **The report leads with the count per tag.** An axis with no findings says
+  "Nothing to fix" and adds nothing more, so a clean review is not padded with
+  observations an agent author would act on.
+
+### Upgrading
+
+Nothing to do.
+
+## 4.8.0
+
+A finding now points at code the reviewer actually read.
+
+### Changed
+
+- **Every finding cites `path:line`, opened before it is reported.** A finding
+  without a citation is dropped, and the reviewer says how many it dropped.
+  This removes findings guessed from a name, without adding a reviewer.
+
+### Upgrading
+
+Nothing to do.
+
+## 4.7.0
+
+Small findings no longer keep a review open.
+
+### Changed
+
+- **At most 3 Nits per axis.** A Nit never starts a review round. It is fixed
+  only in a commit the run is already making, and otherwise reported and left.
+
+### Upgrading
+
+Nothing to do.
+
+## 4.6.0
+
+A review now says which findings this change caused, so an agent author stops
+fixing old code inside the change.
+
+### Changed
+
+- **Every finding carries a tag: Important, Nit, or Pre-existing.** Only
+  Important blocks the handover. A Pre-existing finding is a defect in code the
+  diff did not change. It is recorded with `aep record --note` and never fixed
+  in the effort that found it, so the next round does not review new scope.
+
+### Upgrading
+
+Nothing to do.
+
 ## 4.5.1
 
 Under T3 Code, an effort's tickets run inside the effort's thread again, so

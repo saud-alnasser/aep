@@ -102,8 +102,10 @@ branches get built on unmerged work that was supposed to wait.
 
 ## Pull request descriptions
 
-Problem, solution, architectural impact, testing, related issues, breaking
-changes. Never a commit-by-commit account.
+An effort's pull request takes the shape `[[templates/pull-request.template]]`
+gives, and an issue the shape `[[templates/issue.template]]` gives. Tighten
+either here where this repository asks for more, such as a section its own
+template on the forge requires.
 
 ---
 

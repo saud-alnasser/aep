@@ -35,6 +35,10 @@ glab issue list --all --output json
 glab mr list --all --output json
 ```
 
+Each merge request's `description` carries its `AEP` block, whose `effort:` line
+ties it to its effort. The closing link below is the fallback, for a merge
+request with no block.
+
 **A merge request list carries no link to the issue it closes**, which is where
 this differs from the GitHub side rather than mirroring it. The link is its own
 endpoint, one call per merge request:
@@ -66,23 +70,23 @@ either forge's shape and says which one it read, so a shape it does not
 recognise reports that rather than answering with an empty list of findings.
 
 
-## An effort here: one issue, one merge request
+## An effort here: one merge request, and an issue when wanted
 
-**AEP creates exactly two objects per effort** (`[[policies/tracker]]`). The
+**AEP creates one merge request per effort, and an issue only where one is
+wanted** (`[[policies/tracker]]`, `[[templates/issue.template]]`). The
 tickets stay in the repository under `.aep/efforts/<effort>/tickets/`, and so
 does the dependency graph.
 
 | The fact | Carried by | Never |
 | --- | --- | --- |
-| what the effort is, and its acceptance criteria | **the issue description**, which is `spec.md` | a second copy under `.aep/` |
-| the approach, the tickets, and the run's memory | **the merge request description** | one merge request per ticket |
+| what the effort is, for a person deciding whether it matters | **the issue description**, shaped by `[[templates/issue.template]]`, written once | a copy of `spec.md`, kept in step |
+| what changed, the ticked criteria, and a link to `log.md` | **the merge request description**, shaped by `[[templates/pull-request.template]]` | one merge request per ticket; `log.md` copied in |
 | what gates a ticket | **`blocked-by` in the ticket file** | a linked issue, a `blocked-by-<n>` label |
 | draft, accepted, implemented | **`spec.md`'s `status:`**, projected onto a label | a label that is the source of truth |
 
 ```sh
-glab issue create --title "<effort>" --description "$(cat .aep/efforts/<effort>/spec.md)"
+glab issue create --title "<effort>" --description "$(cat <file>)"   # only where there is an issue
 glab mr create --draft --title "<effort>" --description "$(cat <file>)"
-glab issue update <id> --description "$(cat .aep/efforts/<effort>/spec.md)"
 glab mr update <id> --description "$(cat <file>)"
 glab mr update <id> --ready                  # converge found no gap
 
@@ -156,7 +160,7 @@ every project in the group, so creating one there reaches further than it looks.
 
 | Fact | Carried by | Kind |
 | --- | --- | --- |
-| what the effort is | one issue per effort, description `spec.md` | native |
+| what the effort is | the merge request; an issue only where one is wanted | native |
 | what it will land as | one draft merge request per effort | native |
 | which tickets exist, and what gates each | files under `.aep/efforts/<effort>/tickets/` | **not in this tracker** |
 | the effort's state | `spec.md`'s `status:`, projected onto a label | projection |

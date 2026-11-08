@@ -67,8 +67,8 @@ import {
   RETIRED_DIRS,
   CANONICAL_ENTRYPOINT,
 } from './payload.mjs';
-import { expectedFor } from './reconcile.mjs';
-import { RUNTIMES } from './aep.mjs';
+import { effortOfBody, expectedFor, parseObservation, reconcile } from './reconcile.mjs';
+import { RUNTIMES, readRounds } from './aep.mjs';
 import { BUDGETS, HOT_PATH, budgetOf, countWords, runChecks } from './check.mjs';
 
 /** `src/`, the distribution. */
@@ -1341,10 +1341,10 @@ section('skills', () => {
 
   const flatten = (text) => text.split(/\s+/).join(' ');
   const trackerFlat = flatten(readSrc('policies', 'tracker.md'));
-  assert('an open finding blocks the pull request being marked ready', () =>
-    /mark the pull request ready \u2014 only with every review finding closed/.test(trackerFlat));
+  assert('an open Important finding blocks the pull request being marked ready', () =>
+    /mark the pull request ready \u2014 only with every Important finding closed/.test(trackerFlat));
   assert('a finding is closed by a fix, a ticket, or the human accepting it, never asked mid-run', () =>
-    /A finding is fixed, ticketed, or left in `## Needs you` for the human to accept, never asked mid-run/.test(policyFlat));
+    /An Important finding is fixed, ticketed, or left in `## Needs you` for the human to accept, never asked mid-run/.test(policyFlat));
   assert('a review that passed after its fix still does not stop the run', () =>
     /including a review that passed after its fix, goes in `log\.md`/.test(policyFlat));
 
@@ -1929,9 +1929,9 @@ section('policies', () => {
     /## Independence is read, never inferred/.test(parallel)
     && /never inferred from a guess about which files each touches/.test(parallel));
 
-  // Two tracker objects per effort, and no third; the graph stays local.
-  assert('policies/tracker fixes exactly one issue and one pull request per effort', () =>
-    /\*\*One issue and one pull request\*\*, and no other tracker object/.test(tracker));
+  // One pull request per effort, an issue only where wanted; the graph stays local.
+  assert('policies/tracker fixes one pull request per effort, and an issue only where wanted', () =>
+    /\*\*One pull request per effort\*\*, an issue only where one is wanted, and no other\s+tracker object/.test(tracker));
   assert('policies/tracker keeps the ticket and its graph in the repository', () =>
     /A ticket is never a tracker object, and the ticket graph never leaves the repository/.test(tracker));
   assert('policies/tracker keeps the tracker read-only into .aep/', () =>
@@ -2026,8 +2026,8 @@ section('the run log', () => {
     /appendToLog\(effortDir, effort, 'Ledger'/.test(cli) && /function record\(root, args\)/.test(cli));
   assert('a failed write to log.md is reported rather than continued past', () =>
     /A failed `log\.md` write is reported, never continued past/.test(execution));
-  assert('the tracker mirrors log.md and is never mirrored into .aep/', () =>
-    /The tracker is read, never mirrored into `\.aep\/`\. `log\.md` is canonical; the pull request mirrors it/
+  assert('the pull request links log.md, and the tracker is never mirrored into .aep/', () =>
+    /The tracker is read, never mirrored into `\.aep\/`\. `log\.md` is canonical; the pull request links it, never copies it/
       .test(flat(readSrc('policies', 'tracker.md'))));
 
   assert('no shipped file still counts review attempts in the run log', () => {
@@ -2233,17 +2233,15 @@ section('the effort opens', () => {
   assert('the ask covers both the push and the priority', () =>
     tracker.includes('permission to push and open a public pull request') && tracker.includes("the effort's `priority:`"));
   assert('the ask carries the exact strings it will write', () =>
-    tracker.includes('the exact issue title and body, branch name, and pull request title'));
+    tracker.includes("the exact branch name and pull request title, and the issue's title and body where one is created"));
   assert('a refusal stops the opening', () =>
     /A refusal stops the opening: the draft stays in scratch and nothing is created/.test(tracker));
-  assert('the issue body carries each criterion as a checkbox', () =>
-    tracker.includes('create the issue (each criterion a checkbox)'));
-  assert('the pull request says tickets are not cut rather than listing none', () =>
-    tracker.includes('or saying tickets are not cut yet'));
-  assert('the issue body is rewritten as the spec changes', () =>
-    tracker.includes('the issue body is rewritten to match the spec'));
-  assert('abandoning closes both objects, labelled', () =>
-    tracker.includes('**Abandoning closes both objects**') && tracker.includes('`flag: wontfix`'));
+  assert('the issue and the pull request are each created from their template', () =>
+    tracker.includes('open a draft pull request from its template; then, where there is an issue, fill its `AEP` block'));
+  assert('the issue is never rewritten to match the spec', () =>
+    tracker.includes('the issue is never rewritten to match it'));
+  assert('abandoning closes every object, labelled', () =>
+    tracker.includes('**Abandoning closes every object**') && tracker.includes('`flag: wontfix`'));
 
   // The stages resolve uncertainty inside the invocation.
   assert('specify resolves material uncertainty in this turn', () =>
@@ -2274,15 +2272,15 @@ section('the effort opens', () => {
       stage.includes('opens no report of its own'));
   }
 
-  // Two tracker objects per effort, and a ticket is never one.
-  assert('the tracker policy states exactly two objects per effort', () =>
-    tracker.includes('**One issue and one pull request**, and no other tracker object'));
+  // One pull request per effort, an issue only where wanted, and a ticket is never one.
+  assert('the tracker policy states one pull request per effort, and an issue only where wanted', () =>
+    tracker.includes('**One pull request per effort**, an issue only where one is wanted'));
   assert('a ticket is never a tracker object, and the graph never leaves the repository', () =>
     tracker.includes('A ticket is never a tracker object, and the ticket graph never leaves the repository'));
   for (const [forge, unit] of [['github', 'pull request'], ['gitlab', 'merge request']]) {
     const seed = readSrc('seed', 'references', forge + '.md');
-    assert('the ' + forge + ' seed heads its effort section with one issue and one ' + unit, () =>
-      new RegExp('^## An effort here: one issue, one ' + unit + '$', 'm').test(seed));
+    assert('the ' + forge + ' seed heads its effort section with one ' + unit + ', and an issue when wanted', () =>
+      new RegExp('^## An effort here: one ' + unit + ', and an issue when wanted$', 'm').test(seed));
     assert('the ' + forge + ' seed keeps the tickets in the repository', () =>
       seed.includes('.aep/efforts/<effort>/tickets/'));
     assert('the ' + forge + ' seed computes the frontier locally', () =>
@@ -2300,8 +2298,8 @@ section('the effort opens', () => {
   assert('the runner merges in neither shape', () => /\*\*The runner never merges\.\*\*/.test(execution));
   assert('a tracker run opens what is missing and says so', () =>
     tracker.includes('opens what is missing and says so'));
-  assert('each tracker object links to the effort both ways', () =>
-    tracker.includes('the effort is numbered for the issue, and both bodies name the effort\'s path'));
+  assert('the pull request is tied to its effort by the effort: line of its AEP block', () =>
+    tracker.includes('The `effort:` line in the pull request\'s `AEP` block ties it to the effort'));
   assert('aep open and aep close make no forge call', () =>
     !/\b(gh|glab)\b['"]/.test(cli) && !/'push'|'fetch'/.test(cli));
 
@@ -6960,7 +6958,7 @@ section('labels', () => {
     assert(`the ${cells(row)[0]} row names the reconciliation that corrects it late`, () => /`reconcile\.mjs`/.test(owner));
   }
   assert('an abandoned effort is labelled wontfix and closed', () =>
-    /\*\*Abandoning closes both objects\*\*, labelled `flag: wontfix`/.test(flat(trackerPolicy)));
+    /\*\*Abandoning closes every object\*\*, labelled `flag: wontfix`/.test(flat(trackerPolicy)));
 
   const labelIn = (cell) => (/`(status: [^`]+)`/.exec(cell) ?? [])[1]
     ?? `no backticked label in "${cell}"`;
@@ -7105,8 +7103,8 @@ section('labels', () => {
   assert('no label AEP sets names AEP', () => flatPolicy.includes('No label names AEP.'));
   assert('the tracker re-syncs derived labels on every write, and never touches an initial one', () =>
     /re-synced on every write/.test(policy) && /never changed by an agent/.test(policy));
-  assert('the close computes size and moves both objects to in review', () =>
-    /set `size:`, move both objects to `status: in review`/.test(flat(trackerPolicy)));
+  assert('the close computes size and moves each object to in review', () =>
+    /set `size:`, move each object to `status: in review`/.test(flat(trackerPolicy)));
 
   const labels = JSON.parse(fs.readFileSync(path.join(SRC, LABEL_SEED), 'utf8'));
   const families = Object.keys(labels.families ?? {});
@@ -7345,14 +7343,15 @@ section('the specification', () => {
     ticketing.includes('**An effort\'s tasks are files in this repository**'));
   assert('specs.md says a ticket is never a tracker object', () =>
     ticketing.includes('**A ticket is never an object in a tracker**'));
-  assert('specs.md states exactly two tracker objects per effort', () =>
-    ticketing.includes('**Exactly two tracker objects exist per effort**'));
+  assert('specs.md states one pull request per effort, and an issue only where wanted', () =>
+    ticketing.includes('**One pull request exists per effort, and an issue only where one is wanted (4.15)**'));
 
   // Requirements 62 and 63, in the normative document rather than only in the
   // payload that implements them. The two have to move together: a payload
   // stating a posture the specification does not is a fork inside one release.
-  assert('specs.md requires both tracker objects where a tracker exists', () =>
-    ticketing.includes('**Where the repository has a tracker, both objects are REQUIRED**')
+  assert('specs.md requires the pull request where a tracker exists, tied by its AEP block', () =>
+    ticketing.includes('**Where the repository has a tracker, the pull request is REQUIRED**')
+    && ticketing.includes('on the `effort:` line of its `AEP` block')
     && ticketing.includes('MUST open what is missing and report it'));
   assert('specs.md gives the tracker-less effort a procedure and a merger', () =>
     ticketing.includes(
@@ -8589,9 +8588,10 @@ section('scope surfaces', () => {
 
   // 4.3: an effort declares what it builds on, and the tracker sees the edge.
   const trackerText = flat(readSrc('policies', 'tracker.md'));
-  assert('the tracker policy sets each builds-on edge as an issue dependency and names it in the pull request', () =>
-    /\*\*Each `builds-on:` edge is a tracker dependency:\*\*/.test(trackerText)
-    && /--add-blocked-by/.test(trackerText) && /`Builds on #<its issue>`/.test(trackerText)
+  assert('the tracker policy names each builds-on edge in the pull request, and makes it an issue dependency where both have one', () =>
+    /\*\*Each `builds-on:` edge is named in the pull request body,\*\* `Builds on #<its number>`/.test(trackerText)
+    && /where both efforts have an issue it is also a dependency/.test(trackerText)
+    && /--add-blocked-by/.test(trackerText)
     && /the spec stays canonical/.test(trackerText));
   assert('the specify skill writes builds-on for a request that needs another effort', () =>
     /names it in `builds-on:`; `aep open` then stacks on it or waits for it/.test(flat(readSrc('skills', 'specify.md'))));
@@ -8777,6 +8777,192 @@ section('command line', () => {
       return summary !== null && Number(summary[1]) >= 42 && summary[2] === '0';
     });
   }
+});
+
+section('review and bodies', () => {
+  const review = flat(readSrc('skills', 'review.md'));
+  const findings = flat(readSrc('skills', 'review', 'findings.md'));
+  const correctness = flat(readSrc('agents', 'reviewer-correctness.md'));
+  const standards = flat(readSrc('agents', 'reviewer-standards.md'));
+  const execution = flat(readSrc('policies', 'execution.md'));
+
+  // 4.6: a finding is Important, Nit, or Pre-existing, and only Important blocks.
+  assert('the findings note defines the three tags, and only Important blocks', () =>
+    ['Important', 'Nit', 'Pre-existing'].every((tag) => findings.includes(`| **${tag}** |`))
+    && /\*\*Only Important blocks\.\*\*/.test(findings)
+    && /\*\*A Pre-existing finding is never fixed in this effort\.\*\*/.test(findings)
+    && /--note "pre-existing: <path:line> <what>"/.test(findings));
+  assert('the review skill and both reviewer agents report through the findings note', () =>
+    /each finding reported as `\[\[skills\/review\/findings\]\]` says: only Important blocks/.test(review)
+    && [correctness, standards].every((text) =>
+      /its tag: \*\*Important\*\*, \*\*Nit\*\*, or \*\*Pre-existing\*\*, as `\[\[skills\/review\/findings\]\]` defines them/.test(text)
+      && /Important first, then Nit, then Pre-existing/.test(text)));
+  assert('the execution policy blocks on Important findings only', () =>
+    /An Important finding is fixed, ticketed, or left in `## Needs you`/.test(execution));
+  assert('specs.md §21 defines the three tags', () =>
+    /\*\*A review finding carries one tag \(4\.6\)\.\*\*/.test(specText)
+    && /A Pre-existing finding MUST NOT be fixed in the effort that found it/.test(specText));
+  // 4.7: at most 3 Nits per axis, and a Nit starts no round.
+  assert('the findings note and both reviewer agents cap Nits at 3, and a Nit starts no round', () =>
+    /\*\*At most 3 Nits per axis\.\*\*/.test(findings) && /A Nit never starts a round\./.test(findings)
+    && [correctness, standards].every((text) => /with at most 3 Nits/.test(text) && /A Nit never starts a round\./.test(text)));
+  assert('specs.md §21 caps Nits', () =>
+    /\*\*A reviewer reports at most 3 Nits per axis \(4\.7\)\.\*\* A Nit MUST NOT start a review round/.test(specText));
+  // 4.8: every finding cites a line the reviewer opened.
+  assert('the findings note and both reviewer agents require an opened path:line, and count what was dropped', () =>
+    /\*\*Every finding cites `path:line`, and you open that line before you report it\.\*\*/.test(findings)
+    && /A finding whose line you did not open is dropped, and the return says how many were dropped/.test(findings)
+    && [correctness, standards].every((text) =>
+      /the file and line, as `path:line`, \*\*opened before you report it\*\*/.test(text)
+      && /Say how many findings you dropped for want of a citation/.test(text)));
+  assert('specs.md §21 requires the opened citation', () =>
+    /the reviewer MUST open that line before it reports the finding \(4\.8\)/.test(specText));
+  // 4.9: the report leads with the count per tag, and a clean axis says Nothing to fix.
+  assert('the review skill and the findings note lead with the count per tag, and a clean review says Nothing to fix', () =>
+    /Lead each axis with its count per tag\. One with none says "Nothing to fix" and nothing more\./.test(review)
+    && /A review with no findings says \*\*"Nothing to fix"\*\* and adds nothing more/.test(findings));
+  assert('specs.md §21 has a clean review say Nothing to fix', () =>
+    /an axis with no findings says "Nothing to fix" and nothing more \(4\.9\)/.test(specText));
+  // 4.10: a round records the commit it judged, and later rounds read only what changed.
+  const cliText = readSrc('scripts', 'aep.mjs');
+  assert('aep record writes the reviewed commit, and readRounds reads it back', () =>
+    cliText.includes('line += ` (reviewed ${sha.slice(0, 12)})`;')
+    && cliText.includes('reviewed: reviewed ? reviewed[1] : null'));
+  const roundOf = (line) => readRounds(`## Rounds\n\n- ${line}\n`).review[0];
+  assert('readRounds reads the reviewed commit, and a round is clear only where it names no Important finding', () =>
+    roundOf('review 1: Nothing to fix (reviewed 549f031abcde)').reviewed === '549f031abcde'
+    && roundOf('review 1: Nothing to fix').clear
+    && roundOf('review 1: 0 Important, 2 Nit').clear
+    && roundOf('review 1: no Important, 2 Nit').clear
+    && roundOf('review 1: no findings').clear
+    && !roundOf('review 1: 1 Important, 1 fixed').clear
+    && !roundOf('review 1: Correctness: Nothing to fix; Standards: 1 Important, 1 fixed').clear
+    && !roundOf('review 1: 0 Important, 1 Nit / 1 Important, 1 fixed').clear);
+  assert('the findings note has later rounds diff from the reviewed commit, and the skills point at it', () =>
+    /\*\*Round 2 and later read only what changed\*\*: the diff from that commit/.test(findings)
+    && /Never raise again a finding already fixed or accepted\./.test(findings)
+    && /A later round's subject is `\[\[skills\/review\/findings\]\]`'s\./.test(review)
+    && /--review "2 Important, 2 fixed" --at <reviewed>/.test(readSrc('skills', 'implement.md')));
+  assert('specs.md §21 has later rounds read only what changed', () =>
+    /round 2 and later read only the diff from that commit plus the findings still open \(4\.10\)/.test(specText));
+  // 4.11: an optional rules/review.md, loaded first, with a template for its shape.
+  const reviewTemplate = flat(readSrc('templates', 'review.template.md'));
+  assert('the review skill loads rules/review.md first, and a template gives its shape', () =>
+    /`\.aep\/rules\/review\.md` first, where it exists, then `\[\[policies\]\]` and `\[\[rules\]\]`/.test(review)
+    && /Copy to `\.aep\/rules\/review\.md`/.test(reviewTemplate)
+    && /## What failure looks like here/.test(reviewTemplate) && /## Skip/.test(reviewTemplate)
+    && /\*\*Keep it under 30 lines\.\*\*/.test(reviewTemplate));
+  assert('specs.md §21 lets a repository keep a rules/review.md', () =>
+    /A repository MAY keep a `rules\/review\.md`, and `review` loads it first/.test(specText));
+  // 4.12: with no spec, the pull request and linked issue bodies are the intent; never threads.
+  assert('the review skill reads the pull request and issue bodies after spec.md and before asking, never threads', () => {
+    const step = flat(/^## 2 [\s\S]*?(?=^## )/m.exec(readSrc('skills', 'review.md'))[0]);
+    const order = ["the effort's `spec.md`", 'the pull request and linked issue bodies, never threads', 'If none answers, ask']
+      .map((text) => step.indexOf(text));
+    return order.every((at) => at >= 0) && order[0] < order[1] && order[1] < order[2];
+  });
+  assert('specs.md §21 has review read the bodies, never threads', () =>
+    /`review` reads the pull request body and its linked issue's body as the stated intent, before it asks \(4\.12\)\.\*\* It MUST NOT read comment or review threads/.test(specText));
+  // 4.13: two templates are the one home of each body: a human part, then a folded AEP block.
+  const prTemplate = readSrc('templates', 'pull-request.template.md');
+  const issueTemplate = readSrc('templates', 'issue.template.md');
+  const trackerPolicy = flat(readSrc('policies', 'tracker.md'));
+  assert('both body templates have a human part and a folded AEP block of key: value lines', () =>
+    ['## Why', '## What changed', '## Done when', '## How it was tested', '## Risk'].every((h) => prTemplate.includes(h))
+    && ['## Done when', '## Notes'].every((h) => issueTemplate.includes(h))
+    && [prTemplate, issueTemplate].every((t) => t.includes('<details><summary>AEP</summary>') && /^effort: \.aep\/efforts\/<effort>\/$/m.test(t))
+    && /^log: \.aep\/efforts\/<effort>\/log\.md$/m.test(prTemplate));
+  assert('the templates state when each part is written, where ticks go, and that log.md is linked', () =>
+    /Between them a run edits only the\s+`AEP` block/.test(prTemplate)
+    && /\*\*Of the two bodies, only this one is ticked\.\*\* Each box lives in its ticket\s+file\./.test(prTemplate)
+    && /An issue lists them as plain\s+bullets and is never ticked/.test(prTemplate)
+    && /\*\*`log\.md` is linked, never copied in\.\*\*/.test(prTemplate)
+    && /\*\*Written once\.\*\*/.test(issueTemplate) && /\*\*Bullets, never checkboxes\.\*\*/.test(issueTemplate));
+  assert('the tracker policy names both templates and states no body shape of its own', () =>
+    /\*\*Each body is a human part on top and one folded `AEP` block at the bottom\*\*, shaped by `\[\[templates\/pull-request\.template\]\]` and `\[\[templates\/issue\.template\]\]`/.test(trackerPolicy)
+    && /Criteria are ticked in the pull request only; the issue is written once/.test(trackerPolicy)
+    && !/smallest visual|merge danger|whose body is `spec\.md`/.test(trackerPolicy));
+  assert('the version-control seed points at the templates for pull request descriptions', () =>
+    /An effort's pull request takes the shape `\[\[templates\/pull-request\.template\]\]`/.test(flat(readSrc('seed', 'rules', 'version-control.md'))));
+  assert('no shipped or installed text tells an agent to prepare a body and not submit it', () => {
+    const hits = [...walk(SRC), ...walk(path.join(REPO, '.aep'))]
+      .filter((file) => /\.(md|mjs)$/.test(file) && !file.endsWith('verify.mjs'))
+      // An effort quotes the phrase it removed; it is a record, not an instruction.
+      .filter((file) => !/^\.aep[\\/](efforts|worktrees|scratch)[\\/]/.test(path.relative(REPO, file)))
+      .filter((file) => fs.readFileSync(file, 'utf8').includes('Prepare the body; do not submit it'));
+    if (hits.length > 0) throw new Error(hits.join(', '));
+    return true;
+  });
+  assert('specs.md §14.4 defines the two-part bodies', () =>
+    /\*\*Each tracker body is a human part on top and one folded `AEP` block at the bottom \(4\.13\)\.\*\*/.test(specText)
+    && /The pull request links `log\.md` and MUST NOT copy it\./.test(specText));
+  // 4.14: the risk section says how to revert.
+  assert('the pull request template has a revert line in its risk section, never left out', () => {
+    const risk = /## Risk\n([\s\S]*?)<details>/.exec(readSrc('templates', 'pull-request.template.md'));
+    return Boolean(risk) && /^To revert: <how to undo it/m.test(risk[1])
+      && /\*\*The revert line is never left out\.\*\*/.test(readSrc('templates', 'pull-request.template.md'));
+  });
+  assert('specs.md §14.4 requires the revert line', () =>
+    /risk section states how to revert the change, or that it cannot be undone and why \(4\.14\)/.test(specText));
+  // 4.15: an issue only where wanted; a pull request is tied to its effort by its AEP block.
+  const issueText = readSrc('templates', 'issue.template.md');
+  assert('the issue template says when an issue exists, and numbers an effort without one for its pull request', () =>
+    /An effort always has a pull request\. \*\*It has an issue only where:\*\*/.test(issueText)
+    && /\| \*\*the human names one\*\* \|/.test(issueText) && /\| \*\*it is a roadmap item\*\*/.test(issueText)
+    && /\*\*Otherwise there is no issue, and the effort is numbered for its pull\s+request\.\*\*/.test(issueText)
+    && trackerPolicy.includes('says when an issue exists'));
+  assert('specify reads a named or roadmap issue as input and opens the effort for its number', () =>
+    /For an issue the human named,\s+or a roadmap issue picked up, read its body as input at step 1, and open with\s+`--number <issue> --issue`\./.test(readSrc('skills', 'specify.md')));
+  assert('aep open takes --issue, and its tracker steps name an issue only then', () =>
+    cliText.includes("const boolean = ['json', 'issue'].includes(name);")
+    && cliText.includes('settings.tracker === \'none\' ? [] : args.flags.issue ? [')
+    && cliText.includes('this effort has no issue')
+    && !cliText.includes('create the issue from'));
+  const block = (effort) => `Summary.\n\n<details><summary>AEP</summary>\n\neffort: .aep/efforts/${effort}/\nlog: .aep/efforts/${effort}/log.md\n</details>\n`;
+  const pr = (number, closes, body) => ({ number, state: 'OPEN', labels: [{ name: 'status: in progress' }], closingIssuesReferences: closes.map((n) => ({ number: n })), body });
+  const efforts = [{ effort: '66-alpha', status: 'accepted' }, { effort: '70-beta', status: 'accepted' }, { effort: '80-gamma', status: 'accepted' }];
+  const linked = (observation) => reconcile(efforts, parseObservation(JSON.stringify(observation)));
+  assert('effortOfBody reads the effort: line of the AEP block only', () =>
+    effortOfBody(block('66-alpha')) === '66-alpha'
+    && effortOfBody('effort: .aep/efforts/66-alpha/') === null
+    && effortOfBody('') === null);
+  assert('reconcile ties a block-only pull request to its effort, with no issue', () => {
+    const found = linked({ issues: [], changeRequests: [pr(66, [], block('66-alpha'))] });
+    return found.some((f) => f.effort === '66-alpha' && f.verdict === 'agree')
+      && found.some((f) => f.effort === '70-beta' && f.verdict === 'unobserved');
+  });
+  assert('reconcile falls back to the closing keyword for a pull request with no block', () => {
+    const found = linked({ issues: [], changeRequests: [pr(71, [70], 'No block here.')] });
+    return found.some((f) => f.effort === '70-beta' && f.verdict === 'agree');
+  });
+  assert('a pull request whose block names one effort is never tied to another by its closing keyword', () => {
+    const found = linked({ issues: [], changeRequests: [pr(66, [70], block('66-alpha'))] });
+    return found.some((f) => f.effort === '66-alpha' && f.verdict === 'agree')
+      && found.some((f) => f.effort === '70-beta' && f.verdict === 'unobserved');
+  });
+  assert('a merge request linked by its block never takes an unrelated issue with the same number', () => {
+    const found = reconcile([{ effort: '12-plain', status: 'implemented' }], parseObservation(JSON.stringify({
+      issues: [{ iid: 12, state: 'opened', labels: ['status: backlog'] }],
+      changeRequests: [{ iid: 12, state: 'merged', labels: ['status: done'], closesIssues: [], description: block('12-plain') }],
+    })));
+    return found.length === 1 && found[0].verdict === 'agree';
+  });
+  assert('reconcile ties a pull request with neither a block nor a keyword to no effort', () => {
+    const found = linked({ issues: [], changeRequests: [pr(80, [], 'Nothing names an effort.')] });
+    return found.filter((f) => f.verdict === 'unobserved').length === 3;
+  });
+  assert('an observation fetched without body still reconciles by the closing keyword', () => {
+    const old = pr(71, [70], undefined); delete old.body;
+    const found = linked({ issues: [], changeRequests: [old] });
+    return found.some((f) => f.effort === '70-beta' && f.verdict === 'agree');
+  });
+  assert('both forge references fetch the body and name the AEP block as the link', () =>
+    readSrc('seed', 'references', 'github.md').includes('--json number,state,labels,closingIssuesReferences,body')
+    && /\*\*The `effort:` line in the body's `AEP` block\*\* is what ties a pull request to/.test(readSrc('seed', 'references', 'github.md'))
+    && /whose `effort:` line\s+ties it to its effort/.test(readSrc('seed', 'references', 'gitlab.md')));
+  assert('specs.md §14.4 makes the issue optional and the pull request required', () =>
+    specText.includes('**One pull request exists per effort, and an issue only where one is wanted (4.15)**')
+    && specText.includes('**Where the repository has a tracker, the pull request is REQUIRED**'));
 });
 
 section('the guard fires', () => {

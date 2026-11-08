@@ -73,13 +73,15 @@ cheapest to fix here.
    `[[policies/tracker]]`'s one ask. Then:
 
    ```
-   node .aep/scripts/aep.mjs open <slug> --lane <lane> [--number <issue>]
+   node .aep/scripts/aep.mjs open <slug> --lane <lane> [--number <n>] [--issue]
    ```
 
    It numbers the effort, creates the branch and its surface in one act from the
    base `[[rules/version-control]]` names, moves the draft in, writes `log.md`,
    commits once, and warms the surface. Quote its `summary`. A refusal at the ask
-   opens nothing, and the draft stays in scratch.
+   opens nothing, and the draft stays in scratch. For an issue the human named,
+   or a roadmap issue picked up, read its body as input at step 1, and open with
+   `--number <issue> --issue`.
 
 **After opening,** every revision to `spec.md`, `plan.md`, `evidence/`, or
 `tickets/` is a `docs` commit on the effort branch, made in its surface.

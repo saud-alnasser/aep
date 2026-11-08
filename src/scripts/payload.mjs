@@ -83,6 +83,17 @@ export const MOVES = [
  */
 export const NOTICES = [
   {
+    since: '4.15.0',
+    check:
+      'An issue is now optional: an effort always has a pull request, and an issue only where ' +
+      'the human names one or it is a roadmap item. reconcile.mjs now ties a pull request to its ' +
+      'effort by the effort: line in the body\'s AEP block, so it needs the body. Your ' +
+      '.aep/references/github.md is yours and was left as it was: add ,body to the --json fields ' +
+      'of its gh pr list commands. On GitLab the description is already in the list. Your ' +
+      'reference may also still create the issue from spec.md; the issue body now comes from ' +
+      '.aep/templates/issue.template.md, and only where there is an issue.',
+  },
+  {
     since: '4.5.0',
     check:
       'Every repository now gets .aep/references/t3code.md and .aep/references/claude-code.md, ' +

@@ -213,8 +213,10 @@ finished one.*
 
 ## Pull request descriptions
 
-Problem, solution, architectural impact, testing, related issues, breaking
-changes. Never a commit-by-commit account.
+An effort's pull request takes the shape `[[templates/pull-request.template]]`
+gives, and an issue the shape `[[templates/issue.template]]` gives. This
+repository adds one line to the risk section: the release or releases the
+change cuts.
 
 ---
 
