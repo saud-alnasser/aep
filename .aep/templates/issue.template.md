@@ -4,8 +4,30 @@ use-when: "writing the body of an issue: a roadmap item, or the issue an effort 
 
 # Template — issue body
 
-The one home of the issue's shape. `[[policies/tracker]]` says when an issue
-exists; this says what it holds.
+The one home of the issue's shape, and of when an issue exists.
+`[[policies/tracker]]` governs the rest.
+
+## When there is an issue
+
+An effort always has a pull request. **It has an issue only where:**
+
+| The case | Then |
+| --- | --- |
+| **the human names one** | the effort is numbered for it, and the pull request closes it |
+| **it is a roadmap item**: an idea, or a Pre-existing review finding, with no branch yet | the issue is all there is. `[[skills/specify]]` reads its body as input when it picks it up, and numbers the effort for it |
+
+**Otherwise there is no issue, and the effort is numbered for its pull
+request.** Read the highest issue or pull request number, and pass the next
+one to `aep open --number`. Where the pull request then gets another number,
+rename the effort to match. On GitHub, issues and pull requests share one
+sequence, so the number is unique there. On GitLab they do not: an effort
+numbered for its merge request may share a number with an issue, so name it
+in `builds-on:` by its directory.
+
+A Pre-existing finding is proposed as a roadmap issue with the exact strings,
+as any write to the tracker is, and created only once the human agrees.
+
+## The body
 
 **Two parts.** The top is for a person, in plain words. The bottom is one folded
 block for agents, `key: value` lines a script can read.

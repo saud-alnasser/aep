@@ -237,7 +237,7 @@ Every task of every effort. The tracker carries the effort, never its tasks.
 | [[efforts/66-review-and-bodies/tickets/07-intent-from-bodies]] feat(review): read pull request and issue bodies as intent | 66-review-and-bodies | resolved | 06 |
 | [[efforts/66-review-and-bodies/tickets/08-body-templates]] feat(tracker): issue and pull request templates, human part on top | 66-review-and-bodies | resolved | 07 |
 | [[efforts/66-review-and-bodies/tickets/09-how-to-revert]] feat(tracker): the risk section says how to revert | 66-review-and-bodies | resolved | 08 |
-| [[efforts/66-review-and-bodies/tickets/10-optional-issue]] feat(tracker): issues are optional, and reconcile reads the AEP block | 66-review-and-bodies | open | 09 |
+| [[efforts/66-review-and-bodies/tickets/10-optional-issue]] feat(tracker): issues are optional, and reconcile reads the AEP block | 66-review-and-bodies | resolved | 09 |
 | [[efforts/context-namespacing/tickets/01-shape]] docs(specs): a context may be namespaced by project, and the template says so | context-namespacing | resolved | — |
 | [[efforts/context-namespacing/tickets/02-validate]] feat(validate): a context sits one project directory deep, no more | context-namespacing | resolved | — |
 | [[efforts/context-namespacing/tickets/03-verify]] test(verify): the contexts contract is asserted, including that it stays walked | context-namespacing | resolved | 01, 02 |

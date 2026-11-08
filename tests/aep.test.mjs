@@ -411,6 +411,28 @@ test('a review round records the commit it judged, and a round with no Important
   assert.equal(aep(dir, 'start', effort).json.next, 'close', 'Nits start no round');
 });
 
+test('under a tracker, open names an issue only where --issue says one carries the number', (t) => {
+  const dir = fixture(t, { tracker: 'github' });
+  draft(dir, 'plain');
+  const plain = aep(dir, 'open', 'plain', '--lane', 'standard', '--number', '66');
+  assert.equal(plain.code, 0, JSON.stringify(plain.json));
+  assert.equal(plain.json.effort, '66-plain');
+  assert.ok(plain.json.tracker.every((step) => !/create the issue|of issue #/.test(step)), plain.json.tracker.join(' | '));
+  assert.match(plain.json.tracker.join(' | '), /open a draft pull request from \.aep\/templates\/pull-request\.template\.md; this effort has no issue/);
+  assert.match(plain.json.tracker.join(' | '), /rename the effort to the pull request's number if it is not 66/);
+
+  draft(dir, 'named');
+  const unnamed = aep(dir, 'open', 'named', '--lane', 'standard', '--issue');
+  assert.notEqual(unnamed.code, 0, 'an issue nobody numbered is never guessed');
+  assert.match(unnamed.json.stop, /--issue names the issue that carries --number/);
+  const named = aep(dir, 'open', 'named', '--lane', 'standard', '--number', '70', '--issue');
+  assert.equal(named.code, 0, JSON.stringify(named.json));
+  assert.match(named.json.tracker.join(' | '), /fill the AEP block of issue #70 from \.aep\/templates\/issue\.template\.md/);
+  assert.match(named.json.tracker.join(' | '), /pull-request\.template\.md that closes #70/);
+  assert.ok(named.json.tracker.findIndex((step) => /open a draft pull request/.test(step))
+    < named.json.tracker.findIndex((step) => /AEP block of issue #70/.test(step)), 'the pull request exists before the issue names it');
+});
+
 test('a review round names a commit that exists', (t) => {
   const dir = fixture(t);
   const { surface, effort } = openWithTickets(t, dir, 'standard', ['01-a']);

@@ -36,12 +36,13 @@ Two lists, and the exact fields the script reads:
 
 ```sh
 gh issue list --state all --limit 200 --json number,state,labels
-gh pr list --state all --limit 200 --json number,state,labels,closingIssuesReferences
+gh pr list --state all --limit 200 --json number,state,labels,closingIssuesReferences,body
 ```
 
-`closingIssuesReferences` is what ties a pull request to its effort, and it is
-populated by the closing keyword. A pull request that carries none is reported
-against no effort, which is the same omission the keyword exists to remove.
+**The `effort:` line in the body's `AEP` block** is what ties a pull request to
+its effort. `closingIssuesReferences` is the fallback, for a pull request with
+no block: it is populated by the closing keyword. A pull request with neither
+is reported against no effort.
 
 They are combined into one object with an `issues` key and a `changeRequests`
 key, each holding that command's output unmodified. Nothing beyond `gh` is
@@ -51,7 +52,7 @@ needed to do it:
 { printf '{"issues":'
   gh issue list --state all --limit 200 --json number,state,labels
   printf ',"changeRequests":'
-  gh pr list --state all --limit 200 --json number,state,labels,closingIssuesReferences
+  gh pr list --state all --limit 200 --json number,state,labels,closingIssuesReferences,body
   printf '}'
 } | node .aep/scripts/reconcile.mjs --observed -
 ```
@@ -61,9 +62,10 @@ label to correct, never a spec to edit, including where a person moved the label
 by hand.
 
 
-## An effort here: one issue, one pull request
+## An effort here: one pull request, and an issue when wanted
 
-**AEP creates exactly two objects per effort** (`[[policies/tracker]]`). The
+**AEP creates one pull request per effort, and an issue only where one is
+wanted** (`[[policies/tracker]]`, `[[templates/issue.template]]`). The
 tickets stay in the repository under `.aep/efforts/<effort>/tickets/`, and so
 does the dependency graph.
 
@@ -79,11 +81,10 @@ is a field a script reads; here, it is a paginated fetch to interpret before a
 frontier can be computed, and nobody schedules by hand anyway.*
 
 ```sh
-gh issue create --title "<effort>" --body-file .aep/efforts/<effort>/spec.md
+gh issue create --title "<effort>" --body-file <file>   # only where there is an issue
 gh pr create --draft --title "<effort>" --body-file <file>
-gh issue edit <number> --body-file .aep/efforts/<effort>/spec.md  # the spec changed
-gh pr edit <number> --body-file <file>                            # tickets, run log
-gh pr ready <number>                                              # converge found no gap
+gh pr edit <number> --body-file <file>       # the AEP block
+gh pr ready <number>                         # converge found no gap
 
 gh issue close <number> --reason "not planned"   # abandoned
 gh pr close <number>                             # with it, both labelled flag: wontfix
@@ -217,7 +218,7 @@ read rather than rederived.
 
 | Fact | Carried by | Kind |
 | --- | --- | --- |
-| what the effort is | one issue per effort, body `spec.md` | native |
+| what the effort is | the pull request; an issue only where one is wanted | native |
 | what it will land as | one draft pull request per effort | native |
 | which tickets exist, and what gates each | files under `.aep/efforts/<effort>/tickets/` | **not in this tracker** |
 | the effort's state | `spec.md`'s `status:`, projected onto a `status:` label | projection |

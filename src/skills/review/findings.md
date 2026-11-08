@@ -27,6 +27,9 @@ author's, and a fix grows the scope that the next round then reviews. Record it:
 node .aep/scripts/aep.mjs record <effort> --note "pre-existing: <path:line> <what>"
 ```
 
+With a tracker, also propose it as a roadmap issue, with the exact title and
+body, as `[[templates/issue.template]]` says.
+
 ## The citation
 
 **Every finding cites `path:line`, and you open that line before you report

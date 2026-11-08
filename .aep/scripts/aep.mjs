@@ -4,7 +4,7 @@
 // detach before remove, every surface under the main checkout's worktrees.
 //
 //   node .aep/scripts/aep.mjs status [--repos <dir>] [--json]
-//   node .aep/scripts/aep.mjs open <slug> --lane <quick|standard|full> [--number <n>]
+//   node .aep/scripts/aep.mjs open <slug> --lane <quick|standard|full> [--number <n>] [--issue]
 //   node .aep/scripts/aep.mjs start [<effort>|<effort>/<ticket>]
 //   node .aep/scripts/aep.mjs dispatch <effort> <ticket>...
 //   node .aep/scripts/aep.mjs land <effort> [<ticket>] --message <text> [--session <id>]
@@ -464,9 +464,11 @@ export function logSection(text, heading) {
 /**
  * A review round is clear when nothing it found blocks. The fix to an Important
  * finding is reviewed again, within the lane's cap; a Nit or a Pre-existing
- * finding starts no round.
+ * finding starts no round. Each axis may report its own count, so one axis's
+ * "Nothing to fix" never clears a line that names an Important finding.
  */
-const REVIEW_CLEAR = /\b(?:0|no) (?:important )?findings?\b|\b0 important\b|\bnothing to fix\b/i;
+const REVIEW_CLEAR = /\b(?:0|no) (?:important )?findings?\b|\b(?:0|no) important\b|\bnothing to fix\b/i;
+const REVIEW_BLOCKED = /\b[1-9]\d* important\b/i;
 
 /**
  * The rounds the log records. A line reads `converge 1: no gap`,
@@ -486,7 +488,7 @@ export function readRounds(text) {
       round: Number(match[2]),
       result,
       reviewed: reviewed ? reviewed[1] : null,
-      clear: kind === 'converge' ? /\bno gap\b/i.test(result) : REVIEW_CLEAR.test(result),
+      clear: kind === 'converge' ? /\bno gap\b/i.test(result) : REVIEW_CLEAR.test(result) && !REVIEW_BLOCKED.test(result),
     });
   }
   return rounds;
@@ -603,7 +605,7 @@ function branchFrom(index, effort) {
  * What each effort a spec's `builds-on:` names has become: `merged` where its
  * `spec.md` is on the default branch, `open` where a branch holds it, and a
  * stop otherwise. A name is the effort's directory or its number, which under
- * a tracker is the issue number. Merged wins over open, since a branch named
+ * a tracker is its issue's number, or its pull request's where it has no issue. Merged wins over open, since a branch named
  * for an effort outlives its merge.
  */
 function dependencies(where, index, names) {
@@ -750,6 +752,7 @@ function open(root, args) {
     && git(where.repo, ['ls-remote', '--heads', 'origin', `${args.flags.number ?? ''}-${slug}`], { allowFail: true })) {
     throw new Stop(`a remote branch for ${slug} already exists. A claim held elsewhere is not taken`);
   }
+  if (args.flags.issue && !args.flags.number) throw new Stop('--issue names the issue that carries --number. Pass --number <issue> with it');
   const number = args.flags.number ? Number(args.flags.number) : nextNumber(where, index);
   if (!Number.isInteger(number) || number < 1) throw new Stop('--number must be a positive integer');
   const effort = `${number}-${slug}`;
@@ -855,12 +858,18 @@ function open(root, args) {
   if (draft === candidates[1]) writeIndex(root);
 
   const setup = warm(where, settings, surface, { runtime });
-  const tracker = settings.tracker === 'none' ? [] : [
-    `create the issue from ${where.aepRel}/templates/issue.template.md, and rename the effort to the issue number if it differs`,
-    `push ${branch} and open a draft pull request from ${where.aepRel}/templates/pull-request.template.md`,
+  // An issue only where one is wanted: --issue says the number is an issue's.
+  // Without it the effort is numbered for its pull request, and has no issue.
+  const template = (name) => `${where.aepRel}/templates/${name}.template.md`;
+  const tracker = settings.tracker === 'none' ? [] : args.flags.issue ? [
+    `push ${branch} and open a draft pull request from ${template('pull-request')} that closes #${number}`,
+    `then fill the AEP block of issue #${number} from ${template('issue')}, in its one edit`,
+  ] : [
+    `push ${branch} and open a draft pull request from ${template('pull-request')}; this effort has no issue`,
+    `rename the effort to the pull request's number if it is not ${number}`,
   ];
   if (settings.tracker !== 'none' && needs.length > 0) {
-    tracker.push(`set each builds-on edge as a dependency of the issue, and name it in the pull request body: ${needs.map((need) => need.effort).join(', ')}`);
+    tracker.push(`name each builds-on edge in the pull request body${args.flags.issue ? ', and set it as a dependency of the issue where that effort has one' : ''}: ${needs.map((need) => need.effort).join(', ')}`);
   }
   return {
     effort, lane, number, base, branch, adopted, surface, opened: 'created', setup, tracker,
@@ -1224,7 +1233,7 @@ function close(root, args) {
   }
   outcome.tracker = settings.tracker === 'none' ? [] : stopReason
     ? ['update the AEP block of the pull request; leave it a draft']
-    : ['rewrite the human part of the pull request from templates/pull-request.template.md', 'mark the pull request ready for review'];
+    : [`rewrite the pull request body from ${where.aepRel}/templates/pull-request.template.md, its AEP block included`, 'mark the pull request ready for review'];
   if (runtime) {
     outcome.summary = `${stopReason ? 'stopped' : 'closed'} ${effort}: the runtime's surface at ${here} is left as the runtime made it`;
   } else {
@@ -1552,7 +1561,7 @@ export function parseArgs(argv) {
       continue;
     }
     const name = arg.slice(2);
-    const boolean = ['json'].includes(name);
+    const boolean = ['json', 'issue'].includes(name);
     const value = boolean ? true : argv[i + 1];
     if (!boolean) i += 1;
     if (name === 'friction') flags.friction = [...(flags.friction ?? []), value];

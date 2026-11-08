@@ -152,17 +152,37 @@ export function parseObservation(raw) {
     labels: labelsOf(object, kind),
   });
 
+  // GitHub calls the body `body` and GitLab `description`. Absent is allowed
+  // here, unlike the fields above: an observation fetched before 4.15 has no
+  // body, and its change requests still reconcile by their closing reference.
+  const bodyOf = (object) => [object.body, object.description].find((text) => typeof text === 'string') ?? '';
+
   return {
     forge,
     issues: issues.map((object) => read(object, 'issue')),
     changeRequests: changeRequests.map((object) => ({
       ...read(object, 'change request'),
       closes: closesOf(object),
+      effort: effortOfBody(bodyOf(object)),
     })),
   };
 }
 
-/** An effort directory's numeric prefix, which is the issue that carries it. */
+/**
+ * The effort a pull request's `AEP` block names on its `effort:` line, or null.
+ *
+ * Only the folded block is read. The same words in the human part are prose a
+ * person wrote, and a pull request that quotes another effort's path there must
+ * not be tied to it.
+ */
+export function effortOfBody(body) {
+  const block = /<details>\s*<summary>AEP<\/summary>([\s\S]*?)<\/details>/i.exec(String(body ?? ''));
+  if (!block) return null;
+  const line = /^effort:\s*(?:\S*\/)?efforts\/([^/\s]+)\/?\s*$/m.exec(block[1]);
+  return line ? line[1] : null;
+}
+
+/** An effort directory's numeric prefix: its issue's number, or its pull request's where it has no issue. */
 export function effortNumber(effort) {
   const found = /^(\d+)-/.exec(effort);
   return found ? Number(found[1]) : null;
@@ -207,10 +227,19 @@ export function reconcile(efforts, observation) {
 
   for (const { effort, status } of efforts) {
     const number = effortNumber(effort);
-    const issue = number === null ? undefined : issues.get(number);
-    const changeRequest = number === null
+    // The AEP block names its effort; a pull request with no block falls back
+    // to the issue it closes, which is how every pull request before 4.15 links.
+    const byBlock = changeRequests.find((object) => object.effort === effort);
+    const changeRequest = byBlock
+      ?? (number === null
+        ? undefined
+        : changeRequests.find((object) => object.effort === null && object.closes.includes(number)));
+    // An effort numbered for its pull request has no issue. Where the forge
+    // numbers issues apart, an issue may share that number, so a pull request
+    // linked by its block brings only the issue it closes.
+    const issue = number === null || (byBlock && !byBlock.closes.includes(number))
       ? undefined
-      : changeRequests.find((object) => object.closes.includes(number));
+      : issues.get(number);
 
     if (!issue && !changeRequest) {
       findings.push({ verdict: 'unobserved', effort, detail: 'no tracker object supplied' });

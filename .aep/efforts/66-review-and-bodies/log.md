@@ -15,6 +15,7 @@ use-when: "resuming this effort, or asking where it stands"
 [x] 07 intent-from-bodies 2/2
 [x] 08 body-templates 3/3
 [x] 09 how-to-revert 2/2
+[x] 10 optional-issue 4/4
 
 ## Rounds
 

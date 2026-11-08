@@ -65,7 +65,11 @@ tickets:
 
 - **Leave out a line that has nothing to say.** No `Closes` line without an
   issue; no `Builds on` without a `builds-on:` edge.
-- **Criteria are ticked here, and only here.** An issue lists them as plain
+- **On GitLab a merge request is `!<n>`**, so a `Builds on` line names `!<n>`
+  there; `#<n>` is an issue.
+- **Of the two bodies, only this one is ticked.** Each box lives in its ticket
+  file. Until the close, the `tickets:` lines of the `AEP` block carry the
+  progress; at the close, `## Done when` is ticked. An issue lists them as plain
   bullets and is never ticked.
 - **`log.md` is linked, never copied in.** It is committed and pushed with the
   branch, so the `log:` line is enough.

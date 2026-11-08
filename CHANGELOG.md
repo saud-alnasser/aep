@@ -1,5 +1,36 @@
 # Changelog
 
+## 4.15.0
+
+A pull request no longer needs an issue.
+
+### Changed
+
+- **An effort always has a pull request, and an issue only where one is
+  wanted**: when the human names one, or when it is a roadmap item.
+  `templates/issue.template.md` says when. Without an issue, the effort is
+  numbered for its pull request.
+- **`aep open` takes `--issue`.** Pass it with `--number`, where an issue
+  carries the number; alone it stops. Without it, the tracker steps open only
+  the draft pull request. With it, the pull request opens first, so the issue's
+  one edit can name it.
+- **A review round that names an Important finding on any axis is never
+  clear**, even where another axis says "Nothing to fix".
+- **`reconcile.mjs` ties a pull request to its effort by the `effort:` line in
+  its `AEP` block.** The closing keyword is the fallback, for a pull request
+  with no block. A pull request with neither is reported against no effort. A
+  pull request linked by its block brings only the issue it closes, so a GitLab
+  issue that shares the merge request's number is never taken for the effort's.
+- **The forge references create an issue from the issue template**, and only
+  where there is one, never from `spec.md`.
+
+### Upgrading
+
+`.aep/references/github.md` is yours, so the upgrade leaves it as it is. Add
+`,body` to the `--json` fields of its `gh pr list` commands, so
+`reconcile.mjs` can read the `AEP` block. If it still creates the issue from
+`spec.md`, change that to a file filled from `.aep/templates/issue.template.md`.
+
 ## 4.14.0
 
 A pull request says how to undo it.

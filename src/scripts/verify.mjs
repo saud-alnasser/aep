@@ -67,8 +67,8 @@ import {
   RETIRED_DIRS,
   CANONICAL_ENTRYPOINT,
 } from './payload.mjs';
-import { expectedFor } from './reconcile.mjs';
-import { RUNTIMES } from './aep.mjs';
+import { effortOfBody, expectedFor, parseObservation, reconcile } from './reconcile.mjs';
+import { RUNTIMES, readRounds } from './aep.mjs';
 import { BUDGETS, HOT_PATH, budgetOf, countWords, runChecks } from './check.mjs';
 
 /** `src/`, the distribution. */
@@ -1929,9 +1929,9 @@ section('policies', () => {
     /## Independence is read, never inferred/.test(parallel)
     && /never inferred from a guess about which files each touches/.test(parallel));
 
-  // Two tracker objects per effort, and no third; the graph stays local.
-  assert('policies/tracker fixes exactly one issue and one pull request per effort', () =>
-    /\*\*One issue and one pull request\*\*, and no other tracker object/.test(tracker));
+  // One pull request per effort, an issue only where wanted; the graph stays local.
+  assert('policies/tracker fixes one pull request per effort, and an issue only where wanted', () =>
+    /\*\*One pull request per effort\*\*, an issue only where one is wanted, and no other\s+tracker object/.test(tracker));
   assert('policies/tracker keeps the ticket and its graph in the repository', () =>
     /A ticket is never a tracker object, and the ticket graph never leaves the repository/.test(tracker));
   assert('policies/tracker keeps the tracker read-only into .aep/', () =>
@@ -2233,16 +2233,15 @@ section('the effort opens', () => {
   assert('the ask covers both the push and the priority', () =>
     tracker.includes('permission to push and open a public pull request') && tracker.includes("the effort's `priority:`"));
   assert('the ask carries the exact strings it will write', () =>
-    tracker.includes('the exact issue title and body, branch name, and pull request title'));
+    tracker.includes("the exact branch name and pull request title, and the issue's title and body where one is created"));
   assert('a refusal stops the opening', () =>
     /A refusal stops the opening: the draft stays in scratch and nothing is created/.test(tracker));
   assert('the issue and the pull request are each created from their template', () =>
-    tracker.includes('create the issue from its template')
-    && tracker.includes('open a draft pull request from its template'));
+    tracker.includes('open a draft pull request from its template; then, where there is an issue, fill its `AEP` block'));
   assert('the issue is never rewritten to match the spec', () =>
     tracker.includes('the issue is never rewritten to match it'));
-  assert('abandoning closes both objects, labelled', () =>
-    tracker.includes('**Abandoning closes both objects**') && tracker.includes('`flag: wontfix`'));
+  assert('abandoning closes every object, labelled', () =>
+    tracker.includes('**Abandoning closes every object**') && tracker.includes('`flag: wontfix`'));
 
   // The stages resolve uncertainty inside the invocation.
   assert('specify resolves material uncertainty in this turn', () =>
@@ -2273,15 +2272,15 @@ section('the effort opens', () => {
       stage.includes('opens no report of its own'));
   }
 
-  // Two tracker objects per effort, and a ticket is never one.
-  assert('the tracker policy states exactly two objects per effort', () =>
-    tracker.includes('**One issue and one pull request**, and no other tracker object'));
+  // One pull request per effort, an issue only where wanted, and a ticket is never one.
+  assert('the tracker policy states one pull request per effort, and an issue only where wanted', () =>
+    tracker.includes('**One pull request per effort**, an issue only where one is wanted'));
   assert('a ticket is never a tracker object, and the graph never leaves the repository', () =>
     tracker.includes('A ticket is never a tracker object, and the ticket graph never leaves the repository'));
   for (const [forge, unit] of [['github', 'pull request'], ['gitlab', 'merge request']]) {
     const seed = readSrc('seed', 'references', forge + '.md');
-    assert('the ' + forge + ' seed heads its effort section with one issue and one ' + unit, () =>
-      new RegExp('^## An effort here: one issue, one ' + unit + '$', 'm').test(seed));
+    assert('the ' + forge + ' seed heads its effort section with one ' + unit + ', and an issue when wanted', () =>
+      new RegExp('^## An effort here: one ' + unit + ', and an issue when wanted$', 'm').test(seed));
     assert('the ' + forge + ' seed keeps the tickets in the repository', () =>
       seed.includes('.aep/efforts/<effort>/tickets/'));
     assert('the ' + forge + ' seed computes the frontier locally', () =>
@@ -2299,8 +2298,8 @@ section('the effort opens', () => {
   assert('the runner merges in neither shape', () => /\*\*The runner never merges\.\*\*/.test(execution));
   assert('a tracker run opens what is missing and says so', () =>
     tracker.includes('opens what is missing and says so'));
-  assert('each tracker object links to the effort both ways', () =>
-    tracker.includes('the effort is numbered for the issue, and both bodies name the effort\'s path'));
+  assert('the pull request is tied to its effort by the effort: line of its AEP block', () =>
+    tracker.includes('The `effort:` line in the pull request\'s `AEP` block ties it to the effort'));
   assert('aep open and aep close make no forge call', () =>
     !/\b(gh|glab)\b['"]/.test(cli) && !/'push'|'fetch'/.test(cli));
 
@@ -6959,7 +6958,7 @@ section('labels', () => {
     assert(`the ${cells(row)[0]} row names the reconciliation that corrects it late`, () => /`reconcile\.mjs`/.test(owner));
   }
   assert('an abandoned effort is labelled wontfix and closed', () =>
-    /\*\*Abandoning closes both objects\*\*, labelled `flag: wontfix`/.test(flat(trackerPolicy)));
+    /\*\*Abandoning closes every object\*\*, labelled `flag: wontfix`/.test(flat(trackerPolicy)));
 
   const labelIn = (cell) => (/`(status: [^`]+)`/.exec(cell) ?? [])[1]
     ?? `no backticked label in "${cell}"`;
@@ -7104,8 +7103,8 @@ section('labels', () => {
   assert('no label AEP sets names AEP', () => flatPolicy.includes('No label names AEP.'));
   assert('the tracker re-syncs derived labels on every write, and never touches an initial one', () =>
     /re-synced on every write/.test(policy) && /never changed by an agent/.test(policy));
-  assert('the close computes size and moves both objects to in review', () =>
-    /set `size:`, move both objects to `status: in review`/.test(flat(trackerPolicy)));
+  assert('the close computes size and moves each object to in review', () =>
+    /set `size:`, move each object to `status: in review`/.test(flat(trackerPolicy)));
 
   const labels = JSON.parse(fs.readFileSync(path.join(SRC, LABEL_SEED), 'utf8'));
   const families = Object.keys(labels.families ?? {});
@@ -7344,14 +7343,15 @@ section('the specification', () => {
     ticketing.includes('**An effort\'s tasks are files in this repository**'));
   assert('specs.md says a ticket is never a tracker object', () =>
     ticketing.includes('**A ticket is never an object in a tracker**'));
-  assert('specs.md states exactly two tracker objects per effort', () =>
-    ticketing.includes('**Exactly two tracker objects exist per effort**'));
+  assert('specs.md states one pull request per effort, and an issue only where wanted', () =>
+    ticketing.includes('**One pull request exists per effort, and an issue only where one is wanted (4.15)**'));
 
   // Requirements 62 and 63, in the normative document rather than only in the
   // payload that implements them. The two have to move together: a payload
   // stating a posture the specification does not is a fork inside one release.
-  assert('specs.md requires both tracker objects where a tracker exists', () =>
-    ticketing.includes('**Where the repository has a tracker, both objects are REQUIRED**')
+  assert('specs.md requires the pull request where a tracker exists, tied by its AEP block', () =>
+    ticketing.includes('**Where the repository has a tracker, the pull request is REQUIRED**')
+    && ticketing.includes('on the `effort:` line of its `AEP` block')
     && ticketing.includes('MUST open what is missing and report it'));
   assert('specs.md gives the tracker-less effort a procedure and a merger', () =>
     ticketing.includes(
@@ -8588,9 +8588,10 @@ section('scope surfaces', () => {
 
   // 4.3: an effort declares what it builds on, and the tracker sees the edge.
   const trackerText = flat(readSrc('policies', 'tracker.md'));
-  assert('the tracker policy sets each builds-on edge as an issue dependency and names it in the pull request', () =>
-    /\*\*Each `builds-on:` edge is a tracker dependency:\*\*/.test(trackerText)
-    && /--add-blocked-by/.test(trackerText) && /`Builds on #<its issue>`/.test(trackerText)
+  assert('the tracker policy names each builds-on edge in the pull request, and makes it an issue dependency where both have one', () =>
+    /\*\*Each `builds-on:` edge is named in the pull request body,\*\* `Builds on #<its number>`/.test(trackerText)
+    && /where both efforts have an issue it is also a dependency/.test(trackerText)
+    && /--add-blocked-by/.test(trackerText)
     && /the spec stays canonical/.test(trackerText));
   assert('the specify skill writes builds-on for a request that needs another effort', () =>
     /names it in `builds-on:`; `aep open` then stacks on it or waits for it/.test(flat(readSrc('skills', 'specify.md'))));
@@ -8826,8 +8827,17 @@ section('review and bodies', () => {
   const cliText = readSrc('scripts', 'aep.mjs');
   assert('aep record writes the reviewed commit, and readRounds reads it back', () =>
     cliText.includes('line += ` (reviewed ${sha.slice(0, 12)})`;')
-    && cliText.includes('reviewed: reviewed ? reviewed[1] : null')
-    && cliText.includes(String.raw`|\bnothing to fix\b/i;`));
+    && cliText.includes('reviewed: reviewed ? reviewed[1] : null'));
+  const roundOf = (line) => readRounds(`## Rounds\n\n- ${line}\n`).review[0];
+  assert('readRounds reads the reviewed commit, and a round is clear only where it names no Important finding', () =>
+    roundOf('review 1: Nothing to fix (reviewed 549f031abcde)').reviewed === '549f031abcde'
+    && roundOf('review 1: Nothing to fix').clear
+    && roundOf('review 1: 0 Important, 2 Nit').clear
+    && roundOf('review 1: no Important, 2 Nit').clear
+    && roundOf('review 1: no findings').clear
+    && !roundOf('review 1: 1 Important, 1 fixed').clear
+    && !roundOf('review 1: Correctness: Nothing to fix; Standards: 1 Important, 1 fixed').clear
+    && !roundOf('review 1: 0 Important, 1 Nit / 1 Important, 1 fixed').clear);
   assert('the findings note has later rounds diff from the reviewed commit, and the skills point at it', () =>
     /\*\*Round 2 and later read only what changed\*\*: the diff from that commit/.test(findings)
     && /Never raise again a finding already fixed or accepted\./.test(findings)
@@ -8864,13 +8874,12 @@ section('review and bodies', () => {
     && /^log: \.aep\/efforts\/<effort>\/log\.md$/m.test(prTemplate));
   assert('the templates state when each part is written, where ticks go, and that log.md is linked', () =>
     /Between them a run edits only the\s+`AEP` block/.test(prTemplate)
-    && /\*\*Criteria are ticked here, and only here\.\*\*/.test(prTemplate)
+    && /\*\*Of the two bodies, only this one is ticked\.\*\* Each box lives in its ticket\s+file\./.test(prTemplate)
+    && /An issue lists them as plain\s+bullets and is never ticked/.test(prTemplate)
     && /\*\*`log\.md` is linked, never copied in\.\*\*/.test(prTemplate)
     && /\*\*Written once\.\*\*/.test(issueTemplate) && /\*\*Bullets, never checkboxes\.\*\*/.test(issueTemplate));
   assert('the tracker policy names both templates and states no body shape of its own', () =>
-    trackerPolicy.includes('shaped by `[[templates/issue.template]]`')
-    && trackerPolicy.includes('shaped by `[[templates/pull-request.template]]`')
-    && /\*\*Each body is a human part on top and one folded `AEP` block at the bottom\.\*\*/.test(trackerPolicy)
+    /\*\*Each body is a human part on top and one folded `AEP` block at the bottom\*\*, shaped by `\[\[templates\/pull-request\.template\]\]` and `\[\[templates\/issue\.template\]\]`/.test(trackerPolicy)
     && /Criteria are ticked in the pull request only; the issue is written once/.test(trackerPolicy)
     && !/smallest visual|merge danger|whose body is `spec\.md`/.test(trackerPolicy));
   assert('the version-control seed points at the templates for pull request descriptions', () =>
@@ -8895,7 +8904,65 @@ section('review and bodies', () => {
   });
   assert('specs.md §14.4 requires the revert line', () =>
     /risk section states how to revert the change, or that it cannot be undone and why \(4\.14\)/.test(specText));
-  // @@next
+  // 4.15: an issue only where wanted; a pull request is tied to its effort by its AEP block.
+  const issueText = readSrc('templates', 'issue.template.md');
+  assert('the issue template says when an issue exists, and numbers an effort without one for its pull request', () =>
+    /An effort always has a pull request\. \*\*It has an issue only where:\*\*/.test(issueText)
+    && /\| \*\*the human names one\*\* \|/.test(issueText) && /\| \*\*it is a roadmap item\*\*/.test(issueText)
+    && /\*\*Otherwise there is no issue, and the effort is numbered for its pull\s+request\.\*\*/.test(issueText)
+    && trackerPolicy.includes('says when an issue exists'));
+  assert('specify reads a named or roadmap issue as input and opens the effort for its number', () =>
+    /For an issue the human named,\s+or a roadmap issue picked up, read its body as input at step 1, and open with\s+`--number <issue> --issue`\./.test(readSrc('skills', 'specify.md')));
+  assert('aep open takes --issue, and its tracker steps name an issue only then', () =>
+    cliText.includes("const boolean = ['json', 'issue'].includes(name);")
+    && cliText.includes('settings.tracker === \'none\' ? [] : args.flags.issue ? [')
+    && cliText.includes('this effort has no issue')
+    && !cliText.includes('create the issue from'));
+  const block = (effort) => `Summary.\n\n<details><summary>AEP</summary>\n\neffort: .aep/efforts/${effort}/\nlog: .aep/efforts/${effort}/log.md\n</details>\n`;
+  const pr = (number, closes, body) => ({ number, state: 'OPEN', labels: [{ name: 'status: in progress' }], closingIssuesReferences: closes.map((n) => ({ number: n })), body });
+  const efforts = [{ effort: '66-alpha', status: 'accepted' }, { effort: '70-beta', status: 'accepted' }, { effort: '80-gamma', status: 'accepted' }];
+  const linked = (observation) => reconcile(efforts, parseObservation(JSON.stringify(observation)));
+  assert('effortOfBody reads the effort: line of the AEP block only', () =>
+    effortOfBody(block('66-alpha')) === '66-alpha'
+    && effortOfBody('effort: .aep/efforts/66-alpha/') === null
+    && effortOfBody('') === null);
+  assert('reconcile ties a block-only pull request to its effort, with no issue', () => {
+    const found = linked({ issues: [], changeRequests: [pr(66, [], block('66-alpha'))] });
+    return found.some((f) => f.effort === '66-alpha' && f.verdict === 'agree')
+      && found.some((f) => f.effort === '70-beta' && f.verdict === 'unobserved');
+  });
+  assert('reconcile falls back to the closing keyword for a pull request with no block', () => {
+    const found = linked({ issues: [], changeRequests: [pr(71, [70], 'No block here.')] });
+    return found.some((f) => f.effort === '70-beta' && f.verdict === 'agree');
+  });
+  assert('a pull request whose block names one effort is never tied to another by its closing keyword', () => {
+    const found = linked({ issues: [], changeRequests: [pr(66, [70], block('66-alpha'))] });
+    return found.some((f) => f.effort === '66-alpha' && f.verdict === 'agree')
+      && found.some((f) => f.effort === '70-beta' && f.verdict === 'unobserved');
+  });
+  assert('a merge request linked by its block never takes an unrelated issue with the same number', () => {
+    const found = reconcile([{ effort: '12-plain', status: 'implemented' }], parseObservation(JSON.stringify({
+      issues: [{ iid: 12, state: 'opened', labels: ['status: backlog'] }],
+      changeRequests: [{ iid: 12, state: 'merged', labels: ['status: done'], closesIssues: [], description: block('12-plain') }],
+    })));
+    return found.length === 1 && found[0].verdict === 'agree';
+  });
+  assert('reconcile ties a pull request with neither a block nor a keyword to no effort', () => {
+    const found = linked({ issues: [], changeRequests: [pr(80, [], 'Nothing names an effort.')] });
+    return found.filter((f) => f.verdict === 'unobserved').length === 3;
+  });
+  assert('an observation fetched without body still reconciles by the closing keyword', () => {
+    const old = pr(71, [70], undefined); delete old.body;
+    const found = linked({ issues: [], changeRequests: [old] });
+    return found.some((f) => f.effort === '70-beta' && f.verdict === 'agree');
+  });
+  assert('both forge references fetch the body and name the AEP block as the link', () =>
+    readSrc('seed', 'references', 'github.md').includes('--json number,state,labels,closingIssuesReferences,body')
+    && /\*\*The `effort:` line in the body's `AEP` block\*\* is what ties a pull request to/.test(readSrc('seed', 'references', 'github.md'))
+    && /whose `effort:` line\s+ties it to its effort/.test(readSrc('seed', 'references', 'gitlab.md')));
+  assert('specs.md §14.4 makes the issue optional and the pull request required', () =>
+    specText.includes('**One pull request exists per effort, and an issue only where one is wanted (4.15)**')
+    && specText.includes('**Where the repository has a tracker, the pull request is REQUIRED**'));
 });
 
 section('the guard fires', () => {
