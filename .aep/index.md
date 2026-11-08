@@ -226,7 +226,7 @@ Every task of every effort. The tracker carries the effort, never its tasks.
 | [[efforts/64-runtime-surfaces/tickets/07-one-thread]] fix(runtime): under T3 Code, tickets run inside the effort's thread | 64-runtime-surfaces | resolved | 06 |
 | [[efforts/66-review-and-bodies/tickets/01-finding-tags]] feat(review): tag findings Important, Nit, or Pre-existing | 66-review-and-bodies | resolved | — |
 | [[efforts/66-review-and-bodies/tickets/02-nit-cap]] feat(review): cap nits at 3, and a nit starts no round | 66-review-and-bodies | resolved | 01 |
-| [[efforts/66-review-and-bodies/tickets/03-opened-citation]] feat(review): every finding cites a line the reviewer opened | 66-review-and-bodies | open | 02 |
+| [[efforts/66-review-and-bodies/tickets/03-opened-citation]] feat(review): every finding cites a line the reviewer opened | 66-review-and-bodies | resolved | 02 |
 | [[efforts/66-review-and-bodies/tickets/04-clean-review]] feat(review): a clean review says Nothing to fix | 66-review-and-bodies | open | 03 |
 | [[efforts/66-review-and-bodies/tickets/05-later-rounds]] feat(review): later rounds read only what changed | 66-review-and-bodies | open | 04 |
 | [[efforts/66-review-and-bodies/tickets/06-review-rule]] feat(review): load an optional rules/review.md | 66-review-and-bodies | open | 05 |

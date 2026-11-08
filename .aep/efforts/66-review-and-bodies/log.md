@@ -8,6 +8,7 @@ use-when: "resuming this effort, or asking where it stands"
 
 [x] 01 finding-tags 2/2
 [x] 02 nit-cap 2/2
+[x] 03 opened-citation 2/2
 
 ## Rounds
 

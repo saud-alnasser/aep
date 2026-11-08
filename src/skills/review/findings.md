@@ -27,6 +27,14 @@ author's, and a fix grows the scope that the next round then reviews. Record it:
 node .aep/scripts/aep.mjs record <effort> --note "pre-existing: <path:line> <what>"
 ```
 
+## The citation
+
+**Every finding cites `path:line`, and you open that line before you report
+it.** Read the code there, not its name: a function called `validate` may not
+validate. A finding whose line you did not open is dropped, and the return says
+how many were dropped. One reviewer checking its own citation is the cheap
+form of a second reviewer voting on the finding.
+
 ## Nits
 
 **At most 3 Nits per axis.** Report the three that matter most and drop the

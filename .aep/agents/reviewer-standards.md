@@ -45,7 +45,7 @@ a regression. That is the other axis.
 
 - its tag: **Important**, **Nit**, or **Pre-existing**, as
   `[[skills/review/findings]]` defines them
-- the file and line
+- the file and line, as `path:line`, **opened before you report it**
 - the rule, convention, or knowledge statement it violates — **cited, not
   paraphrased**
 - what it should be instead
@@ -58,6 +58,6 @@ observation and you label it as one.
 
 Findings, Important first, then Nit, then Pre-existing, with at most 3 Nits;
 within a tag, rule violations before convention deviations. A Nit never starts a
-round. Say
-what you did not review. Write it in the controlled register
+round. Say how many findings you dropped for want of a citation, and what you
+did not review. Write it in the controlled register
 (`[[policies/reporting]]`).

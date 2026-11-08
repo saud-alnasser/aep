@@ -8808,6 +8808,15 @@ section('review and bodies', () => {
     && [correctness, standards].every((text) => /with at most 3 Nits/.test(text) && /A Nit never starts a round\./.test(text)));
   assert('specs.md §21 caps Nits', () =>
     /\*\*A reviewer reports at most 3 Nits per axis \(4\.7\)\.\*\* A Nit MUST NOT start a review round/.test(specText));
+  // 4.8: every finding cites a line the reviewer opened.
+  assert('the findings note and both reviewer agents require an opened path:line, and count what was dropped', () =>
+    /\*\*Every finding cites `path:line`, and you open that line before you report it\.\*\*/.test(findings)
+    && /A finding whose line you did not open is dropped, and the return says how many were dropped/.test(findings)
+    && [correctness, standards].every((text) =>
+      /the file and line, as `path:line`, \*\*opened before you report it\*\*/.test(text)
+      && /Say how many findings you dropped for want of a citation/.test(text)));
+  assert('specs.md §21 requires the opened citation', () =>
+    /the reviewer MUST open that line before it reports the finding \(4\.8\)/.test(specText));
   // @@next
 });
 

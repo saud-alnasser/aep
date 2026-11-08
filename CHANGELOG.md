@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.8.0
+
+A finding now points at code the reviewer actually read.
+
+### Changed
+
+- **Every finding cites `path:line`, opened before it is reported.** A finding
+  without a citation is dropped, and the reviewer says how many it dropped.
+  This removes findings guessed from a name, without adding a reviewer.
+
+### Upgrading
+
+Nothing to do.
+
 ## 4.7.0
 
 Small findings no longer keep a review open.
