@@ -24,5 +24,6 @@ converge 1: no gap
 ## Recorded
 
 - opened in the standard lane, from main, the current branch, because rules/version-control sets stack: true
+- pre-existing: src/scripts/aep.mjs:861 open and close give tracker steps in every lane, while src/policies/tracker.md:47 says the quick lane never uses the tracker
 
 ## Needs you
