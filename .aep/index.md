@@ -105,7 +105,7 @@ Start at [[protocol]].
 | 56-surface-position | accepted | [[efforts/56-surface-position/spec]] | 0 | 0 | 17 |
 | 60-session-register | implemented | [[efforts/60-session-register/spec]] | 1 | 0 | 8 |
 | 64-runtime-surfaces | implemented | [[efforts/64-runtime-surfaces/spec]] | 5 | 0 | 7 |
-| 66-review-and-bodies | accepted | [[efforts/66-review-and-bodies/spec]] | 0 | 0 | 10 |
+| 66-review-and-bodies | implemented | [[efforts/66-review-and-bodies/spec]] | 0 | 0 | 10 |
 | context-namespacing | implemented | [[efforts/context-namespacing/spec]] | 0 | 0 | 4 |
 | policy-rule-split | implemented | [[efforts/policy-rule-split/spec]] | 0 | 0 | 12 |
 | readable-output | implemented | [[efforts/readable-output/spec]] | 0 | 0 | 11 |
