@@ -1,5 +1,5 @@
 ---
-status: open
+status: resolved
 blocked-by: [04]
 ---
 
@@ -11,8 +11,10 @@ Each round records the commit it reviewed; round 2 and later diff from it and ca
 
 ## Acceptance Criteria
 
-- [ ] Criterion 5: aep record writes the reviewed commit into ## Rounds, shown by a test; the review skill tells round 2 to diff from it; asserted.
-- [ ] Criterion 12: `node src/scripts/release.mjs 4.10.0` runs, `CHANGELOG.md` has a 4.10.0 entry, `.aep/` is reinstalled, and `node src/scripts/verify.mjs` passes.
+- [x] Criterion 5: aep record writes the reviewed commit into ## Rounds, shown by a test; the review skill tells round 2 to diff from it; asserted.
+      Verified: node --test tests/aep.test.mjs printed "pass 44, fail 0", including "a review round records the commit it judged, and a round with no Important finding is clear" and "a review round names a commit that exists". The section fails by name with --at dropped from implement.md, and with the record line renamed in aep.mjs.
+- [x] Criterion 12: `node src/scripts/release.mjs 4.10.0` runs, `CHANGELOG.md` has a 4.10.0 entry, `.aep/` is reinstalled, and `node src/scripts/verify.mjs` passes.
+      Verified: "released 4.10.0"; verify.mjs printed "2467 passed, 0 failed"; aep check clean, hot path 4186/4200.
 
 ## Relevant areas
 

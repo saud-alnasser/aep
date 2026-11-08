@@ -393,6 +393,38 @@ test('a full-lane review that fixed findings is reviewed again; one that found n
   assert.equal(aep(dir, 'start', effort).json.next, 'close');
 });
 
+test('a review round records the commit it judged, and a round with no Important finding is clear', (t) => {
+  const dir = fixture(t);
+  const { surface, effort } = openWithTickets(t, dir, 'full', ['01-a']);
+  tick(surface, effort, '01-a');
+  assert.equal(aep(surface, 'land', effort, '01', '--message', 'feat: a').code, 0);
+  aep(surface, 'record', effort, '--converge', 'no gap');
+  const judged = git(surface, 'rev-parse', 'HEAD').slice(0, 12);
+  const first = aep(surface, 'record', effort, '--review', '1 Important, 1 fixed', '--at', judged);
+  assert.equal(first.code, 0, JSON.stringify(first.json));
+  assert.equal(first.json.line, `review 1: 1 Important, 1 fixed (reviewed ${judged})`);
+  assert.equal(aep(dir, 'start', effort).json.next, 'review', 'the fix is reviewed again');
+  const second = aep(surface, 'record', effort, '--review', '0 Important, 2 Nit');
+  const head = git(surface, 'rev-parse', 'HEAD~1').slice(0, 12);
+  assert.match(second.json.line, /^review 2: 0 Important, 2 Nit \(reviewed [0-9a-f]{12}\)$/);
+  assert.equal(second.json.line.slice(-13, -1), head, 'the default is the commit the surface stood on');
+  assert.equal(aep(dir, 'start', effort).json.next, 'close', 'Nits start no round');
+});
+
+test('a review round names a commit that exists', (t) => {
+  const dir = fixture(t);
+  const { surface, effort } = openWithTickets(t, dir, 'standard', ['01-a']);
+  tick(surface, effort, '01-a');
+  assert.equal(aep(surface, 'land', effort, '01', '--message', 'feat: a').code, 0);
+  aep(surface, 'record', effort, '--converge', 'no gap');
+  const missing = aep(surface, 'record', effort, '--review', 'Nothing to fix', '--at', 'no-such-ref');
+  assert.equal(missing.code, 1);
+  assert.match(missing.json.stop, /--at no-such-ref does not name a commit/);
+  const clean = aep(surface, 'record', effort, '--review', 'Nothing to fix');
+  assert.equal(clean.code, 0);
+  assert.equal(aep(dir, 'start', effort).json.next, 'close');
+});
+
 test('lanes only go up', (t) => {
   const dir = fixture(t);
   draft(dir, 'typo', { lane: 'quick' });

@@ -1,5 +1,25 @@
 # Changelog
 
+## 4.10.0
+
+A second review round costs a fraction of the first.
+
+### Changed
+
+- **A review round records the commit it judged.** `aep record --review` ends
+  the line with `(reviewed <commit>)`, from `--at <commit>` or else the commit
+  the surface stands on.
+- **Round 2 and later read only what changed**: the diff from that commit plus
+  the findings still open. They never raise again a finding already fixed or
+  accepted.
+- **A round with no Important finding is clear.** "0 Important" and "Nothing
+  to fix" end review, the same as "no findings".
+
+### Upgrading
+
+Nothing to do. A round recorded before 4.10 has no commit, and the next round
+reviews the whole effort branch as before.
+
 ## 4.9.0
 
 A clean review says so plainly.

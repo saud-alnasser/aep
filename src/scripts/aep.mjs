@@ -12,7 +12,7 @@
 //   node .aep/scripts/aep.mjs release <effort>
 //   node .aep/scripts/aep.mjs yield [<effort>] [--session <id>]
 //   node .aep/scripts/aep.mjs raise <effort> <lane> --reason <text>
-//   node .aep/scripts/aep.mjs record <effort> --converge|--review|--note|--needs-you <line>
+//   node .aep/scripts/aep.mjs record <effort> --converge|--review|--note|--needs-you <line> [--at <commit>]
 //   node .aep/scripts/aep.mjs check [--root <tree>]
 //
 // Every command but status and check prints one JSON object carrying a
@@ -462,9 +462,17 @@ export function logSection(text, heading) {
 }
 
 /**
+ * A review round is clear when nothing it found blocks. The fix to an Important
+ * finding is reviewed again, within the lane's cap; a Nit or a Pre-existing
+ * finding starts no round.
+ */
+const REVIEW_CLEAR = /\b(?:0|no) (?:important )?findings?\b|\b0 important\b|\bnothing to fix\b/i;
+
+/**
  * The rounds the log records. A line reads `converge 1: no gap`,
  * `converge 1: gap, tickets 05 06`, `review 1: 3 findings, 3 fixed`,
- * `review 2: no findings`.
+ * `review 2: no findings`. A review line ends `(reviewed <commit>)`, the commit
+ * that round judged, so the next round reads only what changed since.
  */
 export function readRounds(text) {
   const rounds = { converge: [], review: [] };
@@ -472,13 +480,13 @@ export function readRounds(text) {
     const match = /^(converge|review)\s+(\d+):\s*(.*)$/i.exec(line.replace(/^[-*]\s*/, ''));
     if (!match) continue;
     const kind = match[1].toLowerCase();
-    const result = match[3];
+    const reviewed = /\s*\(reviewed ([0-9a-f]{7,40})\)\s*$/i.exec(match[3]);
+    const result = reviewed ? match[3].slice(0, reviewed.index) : match[3];
     rounds[kind].push({
       round: Number(match[2]),
       result,
-      // A review round is clear only when it found nothing: fixes made in a
-      // round are reviewed again, within the lane's cap.
-      clear: kind === 'converge' ? /\bno gap\b/i.test(result) : /\b(?:0|no) findings\b/i.test(result),
+      reviewed: reviewed ? reviewed[1] : null,
+      clear: kind === 'converge' ? /\bno gap\b/i.test(result) : REVIEW_CLEAR.test(result),
     });
   }
   return rounds;
@@ -1335,7 +1343,7 @@ function record(root, args) {
   const [effortArg] = args.positional;
   const kinds = Object.keys(RECORDS).filter((kind) => args.flags[kind] !== undefined);
   if (!effortArg || kinds.length !== 1) {
-    throw new Stop('usage: aep record <effort> --converge|--review|--note|--needs-you "<line>"');
+    throw new Stop('usage: aep record <effort> --converge|--review|--note|--needs-you "<line>" [--at <commit>]');
   }
   const [kind] = kinds;
   const text = String(args.flags[kind]).trim();
@@ -1355,6 +1363,13 @@ function record(root, args) {
       throw new Stop(`${effort} is ${spec.lane}: at most ${cap} ${kind} round(s), and ${done} ran. Close it, with --stop where anything is open`);
     }
     line = `${kind} ${done + 1}: ${text}`;
+    if (kind === 'review') {
+      // The commit this round judged, so the next round diffs from it.
+      const at = typeof args.flags.at === 'string' ? args.flags.at : 'HEAD';
+      const sha = git(here, ['rev-parse', '--verify', '--quiet', `${at}^{commit}`], { allowFail: true });
+      if (!sha) throw new Stop(`--at ${at} does not name a commit`);
+      line += ` (reviewed ${sha.slice(0, 12)})`;
+    }
   } else {
     line = `- ${text}`;
   }

@@ -9,12 +9,11 @@ Two axes, judged **independently**, and no third (architecture is Standards):
 - **Correctness**: does this implement what was asked, and does it work?
 - **Standards**: does it follow this repository's rules and conventions?
 
-Reported together, the stronger axis hides the weaker one.
+Merged, the stronger axis hides the weaker.
 
-**Posture.** Skeptical: assume defects exist and you have not found them yet.
-The question is whether it satisfies the specified change, which is as much
-about the spec as the diff. **What this gives up** is charity toward the
-author, and speed.
+**Posture.** Skeptical: assume defects exist and you have not found them yet,
+and judge the diff against the spec. **What this gives up** is charity toward
+the author, and speed.
 
 ## 1 — Pin the fixed point
 
@@ -24,9 +23,9 @@ the run to its efforts. Take the ref the caller supplied (a SHA, branch, tag, or
 
 The subject is the committed range **plus** staged, unstaged, and untracked
 changes: review their union. Diff against the **merge-base**, not the raw ref.
-`[[references]]` has the invocations. Before dispatching anything, prove the ref
-resolves and the subject is **non-empty**. The claim and the isolation go in
-`Position`, beside the merge-base and the non-empty subject.
+`[[references]]` has the invocations. Before dispatching, prove the ref resolves
+and the subject is **non-empty**; both go in `Position` with the claim and the
+isolation. A later round's subject is `[[skills/review/findings]]`'s.
 
 ## 2 — Find what was asked for
 
@@ -81,5 +80,5 @@ There is no reviews directory: what is durable graduates to the code, a
 
 ## Done when
 
-Every axis the lane calls for has run, the findings are reported without being
-merged, and each is fixed, ticketed, or awaiting the human's acceptance.
+Every axis the lane calls for has run and is reported unmerged, and each
+Important finding is fixed, ticketed, or awaiting the human's acceptance.

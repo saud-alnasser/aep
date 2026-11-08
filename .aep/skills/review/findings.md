@@ -1,5 +1,5 @@
 ---
-use-when: "a reviewer is about to report findings, or a run is deciding which findings block"
+use-when: "a reviewer is about to report findings, a run is deciding which findings block, or a later review round is being pinned"
 ---
 
 # Review — how a finding is reported
@@ -49,6 +49,18 @@ Lead with the count per tag: `2 Important, 1 Nit, 0 Pre-existing`. A review
 with no findings says **"Nothing to fix"** and adds nothing more: no praise, no
 observations to fill the space. A clean review is a result, and filler read as
 a finding costs the author a round.
+
+## Later rounds
+
+Each review round's line in `log.md` `## Rounds` ends `(reviewed <commit>)`,
+the commit that round judged. The run records it with `aep record --review
+"<result>" --at <commit>`, taken before any fix lands.
+
+**Round 2 and later read only what changed**: the diff from that commit to the
+working tree (`git diff <commit>`), plus the findings still open from the last
+round. Never raise again a finding already fixed or accepted. Code unchanged
+since that commit was the earlier round's to judge, so a new finding there
+belongs only where a fix made it reachable.
 
 ## The order
 

@@ -8823,6 +8823,19 @@ section('review and bodies', () => {
     && /A review with no findings says \*\*"Nothing to fix"\*\* and adds nothing more/.test(findings));
   assert('specs.md §21 has a clean review say Nothing to fix', () =>
     /an axis with no findings says "Nothing to fix" and nothing more \(4\.9\)/.test(specText));
+  // 4.10: a round records the commit it judged, and later rounds read only what changed.
+  const cliText = readSrc('scripts', 'aep.mjs');
+  assert('aep record writes the reviewed commit, and readRounds reads it back', () =>
+    cliText.includes('line += ` (reviewed ${sha.slice(0, 12)})`;')
+    && cliText.includes('reviewed: reviewed ? reviewed[1] : null')
+    && cliText.includes(String.raw`|\bnothing to fix\b/i;`));
+  assert('the findings note has later rounds diff from the reviewed commit, and the skills point at it', () =>
+    /\*\*Round 2 and later read only what changed\*\*: the diff from that commit/.test(findings)
+    && /Never raise again a finding already fixed or accepted\./.test(findings)
+    && /A later round's subject is `\[\[skills\/review\/findings\]\]`'s\./.test(review)
+    && /--review "2 Important, 2 fixed" --at <reviewed>/.test(readSrc('skills', 'implement.md')));
+  assert('specs.md §21 has later rounds read only what changed', () =>
+    /round 2 and later read only the diff from that commit plus the findings still open \(4\.10\)/.test(specText));
   // @@next
 });
 

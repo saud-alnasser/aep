@@ -117,15 +117,16 @@ both axes in standard, two reviewers in full. Validate each finding, then fix
 it, ticket it, or record it with `--needs-you` for the human to accept — never
 stop to ask. A fix to a landed ticket amends that
 ticket's commit (`git commit --fixup`, then an autosquash rebase in this
-surface), and re-stamps (`position.mjs stamp`). Record the round:
+surface), and re-stamps (`position.mjs stamp`). Record the round and the commit
+it reviewed:
 
 ```
-node .aep/scripts/aep.mjs record <effort> --review "3 findings, 3 fixed"
-node .aep/scripts/aep.mjs record <effort> --review "no findings"
+node .aep/scripts/aep.mjs record <effort> --review "2 Important, 2 fixed" --at <reviewed>
+node .aep/scripts/aep.mjs record <effort> --review "Nothing to fix"
 ```
 
-Review again after the fixes land, up to the lane's cap. A round that found
-nothing ends review.
+Review again after the fixes land, up to the lane's cap. A round with no
+Important finding ends review.
 
 ## 5 — Close
 
