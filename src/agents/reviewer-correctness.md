@@ -87,6 +87,7 @@ not round a suspicion up to a finding; a review that cries wolf gets skimmed.
 
 ## Return
 
-Findings, Important first, then Nit, then Pre-existing. **Say explicitly what you did not review** and where
+Findings, Important first, then Nit, then Pre-existing, with at most 3 Nits.
+A Nit never starts a round. **Say explicitly what you did not review** and where
 you ran out of budget — a gap read as coverage is worse than no review. Write
 it in the controlled register (`[[policies/reporting]]`).

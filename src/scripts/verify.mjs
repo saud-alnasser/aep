@@ -8802,6 +8802,12 @@ section('review and bodies', () => {
   assert('specs.md §21 defines the three tags', () =>
     /\*\*A review finding carries one tag \(4\.6\)\.\*\*/.test(specText)
     && /A Pre-existing finding MUST NOT be fixed in the effort that found it/.test(specText));
+  // 4.7: at most 3 Nits per axis, and a Nit starts no round.
+  assert('the findings note and both reviewer agents cap Nits at 3, and a Nit starts no round', () =>
+    /\*\*At most 3 Nits per axis\.\*\*/.test(findings) && /A Nit never starts a round\./.test(findings)
+    && [correctness, standards].every((text) => /with at most 3 Nits/.test(text) && /A Nit never starts a round\./.test(text)));
+  assert('specs.md §21 caps Nits', () =>
+    /\*\*A reviewer reports at most 3 Nits per axis \(4\.7\)\.\*\* A Nit MUST NOT start a review round/.test(specText));
   // @@next
 });
 

@@ -27,6 +27,14 @@ author's, and a fix grows the scope that the next round then reviews. Record it:
 node .aep/scripts/aep.mjs record <effort> --note "pre-existing: <path:line> <what>"
 ```
 
+## Nits
+
+**At most 3 Nits per axis.** Report the three that matter most and drop the
+rest. A Nit never starts a round. It is fixed only in a commit the run is
+already making, and otherwise it is reported and left. An agent author fixes
+every finding it is given, each with a commit and a round, so an uncapped Nit
+list is a review that does not end.
+
 ## The order
 
 Important first, then Nit, then Pre-existing. Within a tag, the most severe

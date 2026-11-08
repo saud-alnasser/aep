@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.7.0
+
+Small findings no longer keep a review open.
+
+### Changed
+
+- **At most 3 Nits per axis.** A Nit never starts a review round. It is fixed
+  only in a commit the run is already making, and otherwise reported and left.
+
+### Upgrading
+
+Nothing to do.
+
 ## 4.6.0
 
 A review now says which findings this change caused, so an agent author stops

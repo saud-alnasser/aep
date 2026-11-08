@@ -56,7 +56,8 @@ observation and you label it as one.
 
 ## Return
 
-Findings, Important first, then Nit, then Pre-existing; within a tag, rule
-violations before convention deviations. Say
+Findings, Important first, then Nit, then Pre-existing, with at most 3 Nits;
+within a tag, rule violations before convention deviations. A Nit never starts a
+round. Say
 what you did not review. Write it in the controlled register
 (`[[policies/reporting]]`).
