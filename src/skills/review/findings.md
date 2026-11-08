@@ -43,6 +43,13 @@ already making, and otherwise it is reported and left. An agent author fixes
 every finding it is given, each with a commit and a round, so an uncapped Nit
 list is a review that does not end.
 
+## The summary
+
+Lead with the count per tag: `2 Important, 1 Nit, 0 Pre-existing`. A review
+with no findings says **"Nothing to fix"** and adds nothing more: no praise, no
+observations to fill the space. A clean review is a result, and filler read as
+a finding costs the author a round.
+
 ## The order
 
 Important first, then Nit, then Pre-existing. Within a tag, the most severe

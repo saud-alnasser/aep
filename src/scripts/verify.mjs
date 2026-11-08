@@ -8817,6 +8817,12 @@ section('review and bodies', () => {
       && /Say how many findings you dropped for want of a citation/.test(text)));
   assert('specs.md §21 requires the opened citation', () =>
     /the reviewer MUST open that line before it reports the finding \(4\.8\)/.test(specText));
+  // 4.9: the report leads with the count per tag, and a clean axis says Nothing to fix.
+  assert('the review skill and the findings note lead with the count per tag, and a clean review says Nothing to fix', () =>
+    /Lead each axis with its count per tag\. One with none says "Nothing to fix" and nothing more\./.test(review)
+    && /A review with no findings says \*\*"Nothing to fix"\*\* and adds nothing more/.test(findings));
+  assert('specs.md §21 has a clean review say Nothing to fix', () =>
+    /an axis with no findings says "Nothing to fix" and nothing more \(4\.9\)/.test(specText));
   // @@next
 });
 

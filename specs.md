@@ -1,6 +1,6 @@
 # Agentic Engineering Protocol (AEP) — Specification
 
-**Version:** 4.8.0
+**Version:** 4.9.0
 **Status:** Normative. This document is the canonical specification of the protocol this repository builds.
 **Supersedes:** AEP 1.x in full. The 1.x architecture — `.claude/` as the canonical location, policies, decisions, the stage→dependency table, the boot-tier budget — is **retired, not converted**. Where a 1.x concept survives, it survives because it earned its place again under this model, not because it existed. A 1.x repository's own knowledge does cross, by a defined carry-across (§30.2); its copy of the framework does not.
 
@@ -801,6 +801,8 @@ Position is gitignored, so it is **per working tree rather than per clone**: two
 **A reviewer reports at most 3 Nits per axis (4.7).** A Nit MUST NOT start a review round, and it is fixed only in a commit the run is already making. *Why: an agent author answers every finding with a commit, and every commit with another round, so an uncapped list of small findings keeps a review open that has nothing left to block it.*
 
 **Every finding cites `path:line`, and the reviewer MUST open that line before it reports the finding (4.8).** A finding with no citation is dropped, and the reviewer's return states how many it dropped. *Why: a finding guessed from a name, such as a function that sounds as if it validates, is the commonest false positive, and one reviewer re-reading its own citation removes most of them at no extra agent. Voting reviewers would remove more, at a cost this protocol does not ask of every repository.*
+
+**A review's report leads each axis with its count per tag, and an axis with no findings says "Nothing to fix" and nothing more (4.9).** *Why: a reviewer asked for findings that has none tends to supply observations instead, and an agent author treats each one as work.*
 
 **`converge`** is the effort's termination condition and runs when no unresolved ticket remains. It asks whether the spec is satisfied, and it **appends tickets rather than editing the spec or the plan**: work that was not built becomes further tickets, and an approach that cannot satisfy a requirement stops on the return-to-plan invariant (§22). It runs at most as many rounds as the lane allows, and never more than twice; a second round finding a gap the first round created is a signal about the plan, not an invitation to a third.
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.9.0
+
+A clean review says so plainly.
+
+### Changed
+
+- **The report leads with the count per tag.** An axis with no findings says
+  "Nothing to fix" and adds nothing more, so a clean review is not padded with
+  observations an agent author would act on.
+
+### Upgrading
+
+Nothing to do.
+
 ## 4.8.0
 
 A finding now points at code the reviewer actually read.
