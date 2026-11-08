@@ -101,6 +101,7 @@ Start at [[protocol]].
 | 56-surface-position | accepted | [[efforts/56-surface-position/spec]] | 0 | 0 | 17 |
 | 60-session-register | implemented | [[efforts/60-session-register/spec]] | 1 | 0 | 8 |
 | 64-runtime-surfaces | implemented | [[efforts/64-runtime-surfaces/spec]] | 5 | 0 | 7 |
+| 66-review-and-bodies | accepted | [[efforts/66-review-and-bodies/spec]] | 0 | 0 | 10 |
 | context-namespacing | implemented | [[efforts/context-namespacing/spec]] | 0 | 0 | 4 |
 | policy-rule-split | implemented | [[efforts/policy-rule-split/spec]] | 0 | 0 | 12 |
 | readable-output | implemented | [[efforts/readable-output/spec]] | 0 | 0 | 11 |
@@ -223,6 +224,16 @@ Every task of every effort. The tracker carries the effort, never its tasks.
 | [[efforts/64-runtime-surfaces/tickets/05-handoff]] feat(cli): the agent moves an effort between runtimes by itself, guarded by a lease | 64-runtime-surfaces | resolved | 04 |
 | [[efforts/64-runtime-surfaces/tickets/06-playbooks]] feat(runtime): each runtime gets a playbook, chosen by detecting the runtime | 64-runtime-surfaces | resolved | 05 |
 | [[efforts/64-runtime-surfaces/tickets/07-one-thread]] fix(runtime): under T3 Code, tickets run inside the effort's thread | 64-runtime-surfaces | resolved | 06 |
+| [[efforts/66-review-and-bodies/tickets/01-finding-tags]] feat(review): tag findings Important, Nit, or Pre-existing | 66-review-and-bodies | open | — |
+| [[efforts/66-review-and-bodies/tickets/02-nit-cap]] feat(review): cap nits at 3, and a nit starts no round | 66-review-and-bodies | open | 01 |
+| [[efforts/66-review-and-bodies/tickets/03-opened-citation]] feat(review): every finding cites a line the reviewer opened | 66-review-and-bodies | open | 02 |
+| [[efforts/66-review-and-bodies/tickets/04-clean-review]] feat(review): a clean review says Nothing to fix | 66-review-and-bodies | open | 03 |
+| [[efforts/66-review-and-bodies/tickets/05-later-rounds]] feat(review): later rounds read only what changed | 66-review-and-bodies | open | 04 |
+| [[efforts/66-review-and-bodies/tickets/06-review-rule]] feat(review): load an optional rules/review.md | 66-review-and-bodies | open | 05 |
+| [[efforts/66-review-and-bodies/tickets/07-intent-from-bodies]] feat(review): read pull request and issue bodies as intent | 66-review-and-bodies | open | 06 |
+| [[efforts/66-review-and-bodies/tickets/08-body-templates]] feat(tracker): issue and pull request templates, human part on top | 66-review-and-bodies | open | 07 |
+| [[efforts/66-review-and-bodies/tickets/09-how-to-revert]] feat(tracker): the risk section says how to revert | 66-review-and-bodies | open | 08 |
+| [[efforts/66-review-and-bodies/tickets/10-optional-issue]] feat(tracker): issues are optional, and reconcile reads the AEP block | 66-review-and-bodies | open | 09 |
 | [[efforts/context-namespacing/tickets/01-shape]] docs(specs): a context may be namespaced by project, and the template says so | context-namespacing | resolved | — |
 | [[efforts/context-namespacing/tickets/02-validate]] feat(validate): a context sits one project directory deep, no more | context-namespacing | resolved | — |
 | [[efforts/context-namespacing/tickets/03-verify]] test(verify): the contexts contract is asserted, including that it stays walked | context-namespacing | resolved | 01, 02 |
