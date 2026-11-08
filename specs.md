@@ -1,6 +1,6 @@
 # Agentic Engineering Protocol (AEP) — Specification
 
-**Version:** 4.13.0
+**Version:** 4.14.0
 **Status:** Normative. This document is the canonical specification of the protocol this repository builds.
 **Supersedes:** AEP 1.x in full. The 1.x architecture — `.claude/` as the canonical location, policies, decisions, the stage→dependency table, the boot-tier budget — is **retired, not converted**. Where a 1.x concept survives, it survives because it earned its place again under this model, not because it existed. A 1.x repository's own knowledge does cross, by a defined carry-across (§30.2); its copy of the framework does not.
 
@@ -502,6 +502,8 @@ Tasks **reference** the specification rather than copying large portions of it. 
 *Why the absence needs a procedure of its own: every step that closes an effort is written against a pull request, so a repository without one loses not a projection but the run's memory. It has one only because tasks are files here — the ticks are already in the repository, and the pull request was projecting them rather than storing them.*
 
 **Each tracker body is a human part on top and one folded `AEP` block at the bottom (4.13).** `templates/pull-request.template.md` and `templates/issue.template.md` are the only place either shape is stated; the tracker policy and the version-control seed point at them. The human part is plain words, written when the effort opens and again at the close and at no other time; between them a run edits only the `AEP` block, `key: value` lines a script can read. Criteria are ticked in the pull request only, and the issue lists them as plain bullets. The issue is written once, edited once more when an effort opens for it, and never rewritten to match `spec.md`. The pull request links `log.md` and MUST NOT copy it. *Why: the bodies were read by a person and written for an agent. A body that copies `spec.md` and `log.md` is rewritten on every revision, which costs a write each time and gives each file a second home that drifts; a person deciding whether to merge needs what changed, how it was tested, and the risk, and an agent needs a few lines it can parse.*
+
+**The pull request's risk section states how to revert the change, or that it cannot be undone and why (4.14).** *Why: the author is the one who knows, and writing the line is how the author finds out, before a person is asked to merge.*
 
 **The tracker is read and never mirrored into `.aep/`.** A local copy of a tracker object is exactly the hidden database §2 forbids, and it disagrees with the original the moment one is written and the other is not. The direction that is permitted is the reverse: a label projects what a file says, and the file wins when they disagree.
 

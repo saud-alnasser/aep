@@ -1,5 +1,19 @@
 # Changelog
 
+## 4.14.0
+
+A pull request says how to undo it.
+
+### Changed
+
+- **The risk section has a revert line.** It says how to undo the change, such
+  as "revert the merge commit", or that it cannot be undone and why. The line
+  is never left out.
+
+### Upgrading
+
+Nothing to do.
+
 ## 4.13.0
 
 Pull request and issue bodies read plainly for a person, with agent detail in

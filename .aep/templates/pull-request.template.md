@@ -44,6 +44,9 @@ Before the work is built, the plan in one table.>
 <A one-way or a two-way door, and the blast radius: what breaks, for whom, if
 this is wrong.>
 
+To revert: <how to undo it, such as "revert the merge commit"; or that it
+cannot be undone, and why.>
+
 <details><summary>AEP</summary>
 
 effort: .aep/efforts/<effort>/
@@ -68,4 +71,6 @@ tickets:
   branch, so the `log:` line is enough.
 - **The `effort:` line is what ties this pull request to its effort.** Keep it
   exact: the effort directory, under `.aep/efforts/`, with the trailing slash.
+- **The revert line is never left out.** Writing it is how the author finds out
+  whether the change can be undone, before a person is asked to merge it.
 - **Never a commit-by-commit account**, and never a file-by-file one.

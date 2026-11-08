@@ -8887,6 +8887,14 @@ section('review and bodies', () => {
   assert('specs.md §14.4 defines the two-part bodies', () =>
     /\*\*Each tracker body is a human part on top and one folded `AEP` block at the bottom \(4\.13\)\.\*\*/.test(specText)
     && /The pull request links `log\.md` and MUST NOT copy it\./.test(specText));
+  // 4.14: the risk section says how to revert.
+  assert('the pull request template has a revert line in its risk section, never left out', () => {
+    const risk = /## Risk\n([\s\S]*?)<details>/.exec(readSrc('templates', 'pull-request.template.md'));
+    return Boolean(risk) && /^To revert: <how to undo it/m.test(risk[1])
+      && /\*\*The revert line is never left out\.\*\*/.test(readSrc('templates', 'pull-request.template.md'));
+  });
+  assert('specs.md §14.4 requires the revert line', () =>
+    /risk section states how to revert the change, or that it cannot be undone and why \(4\.14\)/.test(specText));
   // @@next
 });
 
