@@ -19,6 +19,8 @@ use-when: "resuming this effort, or asking where it stands"
 
 ## Rounds
 
+converge 1: no gap
+
 ## Recorded
 
 - opened in the standard lane, from main, the current branch, because rules/version-control sets stack: true
