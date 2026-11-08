@@ -856,8 +856,8 @@ function open(root, args) {
 
   const setup = warm(where, settings, surface, { runtime });
   const tracker = settings.tracker === 'none' ? [] : [
-    `create the issue from ${where.aepRel}/efforts/${effort}/spec.md, and rename the effort to the issue number if it differs`,
-    `push ${branch} and open a draft pull request carrying the run log`,
+    `create the issue from ${where.aepRel}/templates/issue.template.md, and rename the effort to the issue number if it differs`,
+    `push ${branch} and open a draft pull request from ${where.aepRel}/templates/pull-request.template.md`,
   ];
   if (settings.tracker !== 'none' && needs.length > 0) {
     tracker.push(`set each builds-on edge as a dependency of the issue, and name it in the pull request body: ${needs.map((need) => need.effort).join(', ')}`);
@@ -1223,8 +1223,8 @@ function close(root, args) {
     }
   }
   outcome.tracker = settings.tracker === 'none' ? [] : stopReason
-    ? ['mirror the run log into the pull request; leave it a draft']
-    : ['mirror the run log into the pull request', 'mark the pull request ready for review'];
+    ? ['update the AEP block of the pull request; leave it a draft']
+    : ['rewrite the human part of the pull request from templates/pull-request.template.md', 'mark the pull request ready for review'];
   if (runtime) {
     outcome.summary = `${stopReason ? 'stopped' : 'closed'} ${effort}: the runtime's surface at ${here} is left as the runtime made it`;
   } else {

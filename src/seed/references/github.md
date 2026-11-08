@@ -69,8 +69,8 @@ does the dependency graph.
 
 | The fact | Carried by | Never |
 | --- | --- | --- |
-| what the effort is, and its acceptance criteria | **the issue body**, which is `spec.md` | a second copy under `.aep/` |
-| the approach, the tickets, and the run's memory | **the pull request body** | one pull request per ticket |
+| what the effort is, for a person deciding whether it matters | **the issue body**, shaped by `[[templates/issue.template]]`, written once | a copy of `spec.md`, kept in step |
+| what changed, the ticked criteria, and a link to `log.md` | **the pull request body**, shaped by `[[templates/pull-request.template]]` | one pull request per ticket; `log.md` copied in |
 | what gates a ticket | **`blocked-by` in the ticket file** | an issue dependency, a `blocked-by-<n>` label |
 | draft, accepted, implemented | **`spec.md`'s `status:`**, projected onto a label | a label that is the source of truth |
 

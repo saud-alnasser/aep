@@ -221,8 +221,9 @@ issue nobody merged.
 
 ## Pull requests
 
-Opening or merging a pull request is the **human's**, never an agent's
-(`[[rules/version-control]]`). Prepare the body; do not submit it.
+**The runner opens an effort's pull request as a draft, and marks it ready** at
+the close (`[[rules/version-control]]`). **Merging is the human's.** The body
+takes the shape `[[templates/pull-request.template]]` gives.
 
 ## Failure handling
 

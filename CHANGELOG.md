@@ -1,5 +1,35 @@
 # Changelog
 
+## 4.13.0
+
+Pull request and issue bodies read plainly for a person, with agent detail in
+one folded block at the bottom.
+
+### Added
+
+- **`templates/pull-request.template.md` and `templates/issue.template.md`.**
+  They are the only place either body shape is stated. Each body has a human
+  part on top, in plain words, and one collapsed `AEP` block at the bottom,
+  holding `key: value` lines such as `effort:` and `log:`.
+
+### Changed
+
+- **A run writes the human part only when the effort opens and at the close.**
+  Between them it edits only the `AEP` block.
+- **Criteria are ticked in the pull request only.** The issue lists them as
+  plain bullets.
+- **The issue is written once.** It is no longer a copy of `spec.md`, and it is
+  never rewritten as the spec changes.
+- **The pull request links `log.md` and never copies it**, so a land or a
+  record no longer rewrites the whole body.
+
+### Upgrading
+
+Your `.aep/rules/version-control.md` is yours, so an upgrade does not change
+it. If its "Pull request descriptions" section lists sections of its own, point
+it at the two templates instead, or keep only what your repository adds to
+them.
+
 ## 4.12.0
 
 A review with no spec reads what the pull request says it does.

@@ -13,6 +13,7 @@ use-when: "resuming this effort, or asking where it stands"
 [x] 05 later-rounds 2/2
 [x] 06 review-rule 2/2
 [x] 07 intent-from-bodies 2/2
+[x] 08 body-templates 3/3
 
 ## Rounds
 

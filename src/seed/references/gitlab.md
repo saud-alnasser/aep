@@ -74,8 +74,8 @@ does the dependency graph.
 
 | The fact | Carried by | Never |
 | --- | --- | --- |
-| what the effort is, and its acceptance criteria | **the issue description**, which is `spec.md` | a second copy under `.aep/` |
-| the approach, the tickets, and the run's memory | **the merge request description** | one merge request per ticket |
+| what the effort is, for a person deciding whether it matters | **the issue description**, shaped by `[[templates/issue.template]]`, written once | a copy of `spec.md`, kept in step |
+| what changed, the ticked criteria, and a link to `log.md` | **the merge request description**, shaped by `[[templates/pull-request.template]]` | one merge request per ticket; `log.md` copied in |
 | what gates a ticket | **`blocked-by` in the ticket file** | a linked issue, a `blocked-by-<n>` label |
 | draft, accepted, implemented | **`spec.md`'s `status:`**, projected onto a label | a label that is the source of truth |
 

@@ -17,15 +17,18 @@ numbered for the issue, and both bodies name the effort's path.
 
 | In the tracker | In the repository |
 | --- | --- |
-| the issue, whose body is `spec.md` | `spec.md`, `plan.md` |
-| the pull request: approach, tickets, a mirror of `log.md` | tickets, `blocked-by` edges, `log.md` |
+| the issue, shaped by `[[templates/issue.template]]` | `spec.md`, `plan.md` |
+| the pull request, shaped by `[[templates/pull-request.template]]` | tickets, `blocked-by` edges, `log.md` |
 | labels, projecting those files | — |
 
 - A ticket is never a tracker object, and the ticket graph never leaves the
   repository. An effort's `builds-on:` is mirrored as an issue dependency; the
   spec stays canonical.
 - The tracker is read, never mirrored into `.aep/`. `log.md` is canonical; the
-  pull request mirrors it.
+  pull request links it, never copies it.
+- **Each body is a human part on top and one folded `AEP` block at the
+  bottom.** The templates are the only place either shape is stated. Criteria
+  are ticked in the pull request only; the issue is written once.
 - A run that finds an effort short of either object opens what is missing and
   says so.
 - A write to shared tracker data is proposed first, with the exact strings.
@@ -37,12 +40,11 @@ numbered for the issue, and both bodies name the effort's path.
 to push and open a public pull request, with the exact issue title and body,
 branch name, and pull request title; and the effort's `priority:`. A refusal
 stops the opening: the draft stays in scratch and nothing is created. Then:
-create the issue (each criterion a checkbox), `aep open <slug> --lane <lane>
---number <issue>`, push, and open a draft pull request carrying the approach
-and each ticket's criteria as checkboxes, or saying tickets are not cut yet.
+create the issue from its template, `aep open <slug> --lane <lane> --number
+<issue>`, push, and open a draft pull request from its template.
 
 **Each `builds-on:` edge is a tracker dependency:** `gh issue edit <issue>
---add-blocked-by <its issue>`, and the pull request body opens with `Builds on
+--add-blocked-by <its issue>`, and the pull request body names it: `Builds on
 #<its issue>`. Where `aep open` waits on an unmerged effort, the issue stays in
 `status: backlog` with its edge set, and nothing else is created.
 
@@ -56,10 +58,11 @@ written at opening, and never in a commit. Stacked: every commit carries
 
 ## While the run works
 
-After each `aep land` and `aep record`, mirror `log.md` into the pull request
-and project the ticks. **A failed write is reported, never continued past.**
-Every later revision to `spec.md`, `plan.md`, `evidence/`, or `tickets/` is a
-`docs` commit, and the issue body is rewritten to match the spec.
+After each `aep land` and `aep record`, update the pull request's `AEP` block
+and project the ticks; the rest of the body waits for the close. **A failed
+write is reported, never continued past.** Every later revision to `spec.md`,
+`plan.md`, `evidence/`, or `tickets/` is a `docs` commit, and the issue is never
+rewritten to match it.
 
 ## Labels are projections
 
@@ -93,12 +96,8 @@ never the file.
 
 ## Closing
 
-After `aep close`: finalise the pull request body in the shape below, set
+After `aep close`: rewrite the pull request's human part from its template, set
 `size:`, move both objects to `status: in review`, and mark the pull request
-ready — only with every review finding closed. A stop mirrors `log.md` and
-leaves the pull request a draft. **Abandoning closes both objects**, labelled
-`flag: wontfix`.
-
-The body: the smallest visual that explains the change; before-and-after
-evidence; and the merge danger — a one-way or two-way door, and the blast
-radius.
+ready — only with every Important finding closed. A stop updates the `AEP`
+block and leaves the pull request a draft. **Abandoning closes both objects**,
+labelled `flag: wontfix`.

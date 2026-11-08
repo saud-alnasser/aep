@@ -80,9 +80,11 @@ Start at [[protocol]].
 | [[templates/agent.template]] | defining a new agent role that a skill will dispatch | — |
 | [[templates/agents.template]] | writing or extending a runtime's entrypoint, so it reaches AEP without restating it | — |
 | [[templates/context.template]] | adding orientation for an area of this repository | — |
+| [[templates/issue.template]] | writing the body of an issue: a roadmap item, or the issue an effort opens for | — |
 | [[templates/plan.template]] | writing an effort's plan.md, the technical approach behind a settled spec | — |
 | [[templates/protocol.template]] | auditing what the bootstrap must contain, or porting AEP to a runtime whose entrypoint differs | — |
 | [[templates/prototype.template]] | recording what a prototype answered, before deleting the code | — |
+| [[templates/pull-request.template]] | writing or finalising the body of an effort's pull request or merge request | — |
 | [[templates/reference.template]] | recording how a tool is actually operated in this repository | — |
 | [[templates/research.template]] | recording what an investigation established | — |
 | [[templates/review.template]] | writing or changing this repository's rules/review.md, what a reviewer should look for here and what it should skip | — |
@@ -233,7 +235,7 @@ Every task of every effort. The tracker carries the effort, never its tasks.
 | [[efforts/66-review-and-bodies/tickets/05-later-rounds]] feat(review): later rounds read only what changed | 66-review-and-bodies | resolved | 04 |
 | [[efforts/66-review-and-bodies/tickets/06-review-rule]] feat(review): load an optional rules/review.md | 66-review-and-bodies | resolved | 05 |
 | [[efforts/66-review-and-bodies/tickets/07-intent-from-bodies]] feat(review): read pull request and issue bodies as intent | 66-review-and-bodies | resolved | 06 |
-| [[efforts/66-review-and-bodies/tickets/08-body-templates]] feat(tracker): issue and pull request templates, human part on top | 66-review-and-bodies | open | 07 |
+| [[efforts/66-review-and-bodies/tickets/08-body-templates]] feat(tracker): issue and pull request templates, human part on top | 66-review-and-bodies | resolved | 07 |
 | [[efforts/66-review-and-bodies/tickets/09-how-to-revert]] feat(tracker): the risk section says how to revert | 66-review-and-bodies | open | 08 |
 | [[efforts/66-review-and-bodies/tickets/10-optional-issue]] feat(tracker): issues are optional, and reconcile reads the AEP block | 66-review-and-bodies | open | 09 |
 | [[efforts/context-namespacing/tickets/01-shape]] docs(specs): a context may be namespaced by project, and the template says so | context-namespacing | resolved | — |

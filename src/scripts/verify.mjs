@@ -1341,8 +1341,8 @@ section('skills', () => {
 
   const flatten = (text) => text.split(/\s+/).join(' ');
   const trackerFlat = flatten(readSrc('policies', 'tracker.md'));
-  assert('an open finding blocks the pull request being marked ready', () =>
-    /mark the pull request ready \u2014 only with every review finding closed/.test(trackerFlat));
+  assert('an open Important finding blocks the pull request being marked ready', () =>
+    /mark the pull request ready \u2014 only with every Important finding closed/.test(trackerFlat));
   assert('a finding is closed by a fix, a ticket, or the human accepting it, never asked mid-run', () =>
     /An Important finding is fixed, ticketed, or left in `## Needs you` for the human to accept, never asked mid-run/.test(policyFlat));
   assert('a review that passed after its fix still does not stop the run', () =>
@@ -2026,8 +2026,8 @@ section('the run log', () => {
     /appendToLog\(effortDir, effort, 'Ledger'/.test(cli) && /function record\(root, args\)/.test(cli));
   assert('a failed write to log.md is reported rather than continued past', () =>
     /A failed `log\.md` write is reported, never continued past/.test(execution));
-  assert('the tracker mirrors log.md and is never mirrored into .aep/', () =>
-    /The tracker is read, never mirrored into `\.aep\/`\. `log\.md` is canonical; the pull request mirrors it/
+  assert('the pull request links log.md, and the tracker is never mirrored into .aep/', () =>
+    /The tracker is read, never mirrored into `\.aep\/`\. `log\.md` is canonical; the pull request links it, never copies it/
       .test(flat(readSrc('policies', 'tracker.md'))));
 
   assert('no shipped file still counts review attempts in the run log', () => {
@@ -2236,12 +2236,11 @@ section('the effort opens', () => {
     tracker.includes('the exact issue title and body, branch name, and pull request title'));
   assert('a refusal stops the opening', () =>
     /A refusal stops the opening: the draft stays in scratch and nothing is created/.test(tracker));
-  assert('the issue body carries each criterion as a checkbox', () =>
-    tracker.includes('create the issue (each criterion a checkbox)'));
-  assert('the pull request says tickets are not cut rather than listing none', () =>
-    tracker.includes('or saying tickets are not cut yet'));
-  assert('the issue body is rewritten as the spec changes', () =>
-    tracker.includes('the issue body is rewritten to match the spec'));
+  assert('the issue and the pull request are each created from their template', () =>
+    tracker.includes('create the issue from its template')
+    && tracker.includes('open a draft pull request from its template'));
+  assert('the issue is never rewritten to match the spec', () =>
+    tracker.includes('the issue is never rewritten to match it'));
   assert('abandoning closes both objects, labelled', () =>
     tracker.includes('**Abandoning closes both objects**') && tracker.includes('`flag: wontfix`'));
 
@@ -8854,6 +8853,40 @@ section('review and bodies', () => {
   });
   assert('specs.md §21 has review read the bodies, never threads', () =>
     /`review` reads the pull request body and its linked issue's body as the stated intent, before it asks \(4\.12\)\.\*\* It MUST NOT read comment or review threads/.test(specText));
+  // 4.13: two templates are the one home of each body: a human part, then a folded AEP block.
+  const prTemplate = readSrc('templates', 'pull-request.template.md');
+  const issueTemplate = readSrc('templates', 'issue.template.md');
+  const trackerPolicy = flat(readSrc('policies', 'tracker.md'));
+  assert('both body templates have a human part and a folded AEP block of key: value lines', () =>
+    ['## Why', '## What changed', '## Done when', '## How it was tested', '## Risk'].every((h) => prTemplate.includes(h))
+    && ['## Done when', '## Notes'].every((h) => issueTemplate.includes(h))
+    && [prTemplate, issueTemplate].every((t) => t.includes('<details><summary>AEP</summary>') && /^effort: \.aep\/efforts\/<effort>\/$/m.test(t))
+    && /^log: \.aep\/efforts\/<effort>\/log\.md$/m.test(prTemplate));
+  assert('the templates state when each part is written, where ticks go, and that log.md is linked', () =>
+    /Between them a run edits only the\s+`AEP` block/.test(prTemplate)
+    && /\*\*Criteria are ticked here, and only here\.\*\*/.test(prTemplate)
+    && /\*\*`log\.md` is linked, never copied in\.\*\*/.test(prTemplate)
+    && /\*\*Written once\.\*\*/.test(issueTemplate) && /\*\*Bullets, never checkboxes\.\*\*/.test(issueTemplate));
+  assert('the tracker policy names both templates and states no body shape of its own', () =>
+    trackerPolicy.includes('shaped by `[[templates/issue.template]]`')
+    && trackerPolicy.includes('shaped by `[[templates/pull-request.template]]`')
+    && /\*\*Each body is a human part on top and one folded `AEP` block at the bottom\.\*\*/.test(trackerPolicy)
+    && /Criteria are ticked in the pull request only; the issue is written once/.test(trackerPolicy)
+    && !/smallest visual|merge danger|whose body is `spec\.md`/.test(trackerPolicy));
+  assert('the version-control seed points at the templates for pull request descriptions', () =>
+    /An effort's pull request takes the shape `\[\[templates\/pull-request\.template\]\]`/.test(flat(readSrc('seed', 'rules', 'version-control.md'))));
+  assert('no shipped or installed text tells an agent to prepare a body and not submit it', () => {
+    const hits = [...walk(SRC), ...walk(path.join(REPO, '.aep'))]
+      .filter((file) => /\.(md|mjs)$/.test(file) && !file.endsWith('verify.mjs'))
+      // An effort quotes the phrase it removed; it is a record, not an instruction.
+      .filter((file) => !/^\.aep[\\/](efforts|worktrees|scratch)[\\/]/.test(path.relative(REPO, file)))
+      .filter((file) => fs.readFileSync(file, 'utf8').includes('Prepare the body; do not submit it'));
+    if (hits.length > 0) throw new Error(hits.join(', '));
+    return true;
+  });
+  assert('specs.md §14.4 defines the two-part bodies', () =>
+    /\*\*Each tracker body is a human part on top and one folded `AEP` block at the bottom \(4\.13\)\.\*\*/.test(specText)
+    && /The pull request links `log\.md` and MUST NOT copy it\./.test(specText));
   // @@next
 });
 
