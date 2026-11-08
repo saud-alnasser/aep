@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.6.0
+
+A review now says which findings this change caused, so an agent author stops
+fixing old code inside the change.
+
+### Changed
+
+- **Every finding carries a tag: Important, Nit, or Pre-existing.** Only
+  Important blocks the handover. A Pre-existing finding is a defect in code the
+  diff did not change. It is recorded with `aep record --note` and never fixed
+  in the effort that found it, so the next round does not review new scope.
+
+### Upgrading
+
+Nothing to do.
+
 ## 4.5.1
 
 Under T3 Code, an effort's tickets run inside the effort's thread again, so

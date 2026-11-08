@@ -97,6 +97,7 @@ export const PROTOCOL_FILES = [
   'skills/refine.md',
   'skills/research.md',
   'skills/review.md',
+  'skills/review/findings.md',
   'skills/review/smells.md',
   'skills/specify.md',
   'skills/specify/out-of-scope.md',

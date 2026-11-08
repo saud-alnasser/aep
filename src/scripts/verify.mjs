@@ -1344,7 +1344,7 @@ section('skills', () => {
   assert('an open finding blocks the pull request being marked ready', () =>
     /mark the pull request ready \u2014 only with every review finding closed/.test(trackerFlat));
   assert('a finding is closed by a fix, a ticket, or the human accepting it, never asked mid-run', () =>
-    /A finding is fixed, ticketed, or left in `## Needs you` for the human to accept, never asked mid-run/.test(policyFlat));
+    /An Important finding is fixed, ticketed, or left in `## Needs you` for the human to accept, never asked mid-run/.test(policyFlat));
   assert('a review that passed after its fix still does not stop the run', () =>
     /including a review that passed after its fix, goes in `log\.md`/.test(policyFlat));
 
@@ -8777,6 +8777,32 @@ section('command line', () => {
       return summary !== null && Number(summary[1]) >= 42 && summary[2] === '0';
     });
   }
+});
+
+section('review and bodies', () => {
+  const review = flat(readSrc('skills', 'review.md'));
+  const findings = flat(readSrc('skills', 'review', 'findings.md'));
+  const correctness = flat(readSrc('agents', 'reviewer-correctness.md'));
+  const standards = flat(readSrc('agents', 'reviewer-standards.md'));
+  const execution = flat(readSrc('policies', 'execution.md'));
+
+  // 4.6: a finding is Important, Nit, or Pre-existing, and only Important blocks.
+  assert('the findings note defines the three tags, and only Important blocks', () =>
+    ['Important', 'Nit', 'Pre-existing'].every((tag) => findings.includes(`| **${tag}** |`))
+    && /\*\*Only Important blocks\.\*\*/.test(findings)
+    && /\*\*A Pre-existing finding is never fixed in this effort\.\*\*/.test(findings)
+    && /--note "pre-existing: <path:line> <what>"/.test(findings));
+  assert('the review skill and both reviewer agents report through the findings note', () =>
+    /each finding reported as `\[\[skills\/review\/findings\]\]` says: only Important blocks/.test(review)
+    && [correctness, standards].every((text) =>
+      /its tag: \*\*Important\*\*, \*\*Nit\*\*, or \*\*Pre-existing\*\*, as `\[\[skills\/review\/findings\]\]` defines them/.test(text)
+      && /Important first, then Nit, then Pre-existing/.test(text)));
+  assert('the execution policy blocks on Important findings only', () =>
+    /An Important finding is fixed, ticketed, or left in `## Needs you`/.test(execution));
+  assert('specs.md §21 defines the three tags', () =>
+    /\*\*A review finding carries one tag \(4\.6\)\.\*\*/.test(specText)
+    && /A Pre-existing finding MUST NOT be fixed in the effort that found it/.test(specText));
+  // @@next
 });
 
 section('the guard fires', () => {

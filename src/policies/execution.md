@@ -114,7 +114,7 @@ not ready.
 ## Review, then close
 
 Once converge finds no gap, `[[skills/review]]` judges the whole effort branch,
-as a stage of this turn. A finding is fixed,
+as a stage of this turn. An Important finding is fixed,
 ticketed, or left in `## Needs you` for the human to accept, never asked
 mid-run; one open at the last round ends the effort not ready.
 

@@ -43,6 +43,8 @@ a regression. That is the other axis.
 
 ## Every finding must carry
 
+- its tag: **Important**, **Nit**, or **Pre-existing**, as
+  `[[skills/review/findings]]` defines them
 - the file and line
 - the rule, convention, or knowledge statement it violates — **cited, not
   paraphrased**
@@ -54,6 +56,7 @@ observation and you label it as one.
 
 ## Return
 
-Findings, most severe first, rule violations before convention deviations. Say
+Findings, Important first, then Nit, then Pre-existing; within a tag, rule
+violations before convention deviations. Say
 what you did not review. Write it in the controlled register
 (`[[policies/reporting]]`).

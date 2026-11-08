@@ -60,8 +60,9 @@ conclusion between them. Cap each report.
 
 ## 5 — Report
 
-`## Correctness` and `## Standards`, never merged and never reranked across.
-Close with one line per axis: the count, and the worst finding within it.
+`## Correctness` and `## Standards`, never merged and never reranked across,
+each finding reported as `[[skills/review/findings]]` says: only Important
+blocks. Close with one line per axis: the count, and the worst finding within it.
 
 ## 6 — Every finding gets an outcome
 
